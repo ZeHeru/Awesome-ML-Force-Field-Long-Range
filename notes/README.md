@@ -90,7 +90,7 @@ No dataset-specific mmd notes have been added yet. The current paper/data links 
 ### Software
 - AIMNetCentral
 - DMFF
-- FeNNol/FeNNix
+- ✅ ~~FeNNol/FeNNix~~ - **Added!**
 
 ---
 

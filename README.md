@@ -168,14 +168,14 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 | Method | Main idea | Notes |
 |---|---|---|
-| [DPLR](https://doi.org/10.1063/5.0083669) | Learns Wannier centers and evaluates long-range electrostatics with Deep Potential | Natural fit for periodic insulating systems |
-| [DeepWannier for Dielectric Response](https://doi.org/10.1103/PhysRevB.102.041121) | Learns Wannier centers for dielectric properties | Extends DPLR approach to dielectric response |
-| [EwaldMP](https://github.com/arthurkosmala/EwaldMP) | Adds Ewald-based long-range message passing to molecular graphs | General GNN design pattern for global interactions |
-| [LES](https://doi.org/10.1038/s41524-025-01577-7) | Learns latent variables and applies Ewald summation | Attractive because it can train from energies and forces |
-| [LES augmentation](https://doi.org/10.1021/acs.jctc.5c01400) | Standalone LES library attached to CACE, MACE, NequIP, Allegro, CHGNet, UMA | Practical route to retrofit short-range MLIPs |
-| [SOG-Net](https://github.com/DuktigYajie/SOG-Net) | Learns sum-of-Gaussians long-range kernels with Fourier convolution | Supports different long-range decay behaviors |
-| [Reciprocal Space Neural Network](https://arxiv.org/abs/2211.16684) | Uses reciprocal-space representation to capture long-range interactions | Useful reference for periodic nonlocal representations |
-| [Self-Consistent Long-Range Electrostatics NNP](https://doi.org/10.XXXX/XXXXX) | Self-consistent treatment of long-range electrostatics in neural network potentials | Iterative approach for charge consistency |
+| [DPLR](https://doi.org/10.1063/5.0083669) | Learns Wannier centers and evaluates long-range electrostatics with Deep Potential | Adds Gaussian charges at ionic sites and MLWC-derived electronic sites to DP; tested on water dimer/slab and NaCl phonons. [Note](notes/Deep_Potential_Long_Range.mmd) |
+| [DeepWannier for Dielectric Response](https://doi.org/10.1103/PhysRevB.102.041121) | Learns Wannier centers for dielectric properties | Learns MLWC centers with a symmetry-preserving DNN, then combines with DP to access dielectric response and spectra of insulating systems. [Note](notes/DeepWannier_Dielectric_Zhang_PRB_2020.mmd) |
+| [EwaldMP](https://github.com/arthurkosmala/EwaldMP) | Adds Ewald-based long-range message passing to molecular graphs | No mmd note in this repository yet. |
+| [LES](https://doi.org/10.1038/s41524-025-01577-7) | Learns latent variables and applies Ewald summation | Predicts latent variables from local descriptors and couples them globally through Ewald summation; benchmarks include charged/polar dimers, molten NaCl, bulk water, and water interfaces. [Note](notes/Latent_Ewald_Summation.mmd) |
+| [LES augmentation](https://doi.org/10.1021/acs.jctc.5c01400) | Standalone LES library attached to CACE, MACE, NequIP, Allegro, CHGNet, UMA | Standalone PyTorch LES module for retrofitting short-range MLIPs; can infer electrostatics, polarization, and BECs from energy/force training. [Note](notes/LES_Universal_Augmentation_Long_Range.mmd) |
+| [SOG-Net](https://github.com/DuktigYajie/SOG-Net) | Learns sum-of-Gaussians long-range kernels with Fourier convolution | Learns latent variables and sum-of-Gaussians Fourier convolution kernels to cover different long-range decay tails with near-linear NUFFT-based scaling. [Note](notes/SOG-Net.mmd) |
+| [Reciprocal Space Neural Network](https://arxiv.org/abs/2211.16684) | Uses reciprocal-space representation to capture long-range interactions | No mmd note in this repository yet. |
+| [SCFNN](https://doi.org/10.1038/s41467-022-29243-2) | Self-consistent treatment of long-range electrostatics in neural network potentials | Separates Gaussian-truncated short-range physics from long-range electric-field response; MLWFCs and forces are coupled through a self-consistent loop. [Note](notes/SCFNN_Gao_Remsing_NatComm_2022.mmd) |
 
 </details>
 
@@ -183,13 +183,15 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 ## 🧲 Polarization, Multipoles, and Electric Response
 
-| Resource | Why it matters |
-|---|---|
-| [Machine learning interatomic potential can infer electrical response](https://www.nature.com/articles/s41524-025-01911-z) | Shows that LES-style MLIPs can infer Born effective charges and response properties. |
-| [DMFF](https://github.com/deepmodeling/DMFF) | Differentiable molecular force-field ecosystem for polarizable and long-range classical terms. |
-| [OpenMM](https://github.com/openmm/openmm) | Production molecular simulation engine with PME, polarizable models, and custom forces. |
-| [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack) | Atomistic ML toolkit with modules for atomistic properties and extensible model components. |
-| [FeNNol / FeNNix](https://github.com/FeNNol-tools/FeNNol) | Force-field-enhanced NNP direction; useful to watch for local + long-range energy decomposition. |
+| Resource | Why it matters | Notes |
+|---|---|---|
+| [Machine learning interatomic potential can infer electrical response](https://www.nature.com/articles/s41524-025-01911-z) | Shows that LES-style MLIPs can infer Born effective charges and response properties. | No dedicated mmd note yet; related framework note: [LES augmentation](notes/LES_Universal_Augmentation_Long_Range.mmd). |
+| [ANI-2X/AMOEBA](https://doi.org/10.1039/d2sc04815a) | Hybrid DNN/polarizable potential route for biomolecular simulations with long-range effects. | Couples ANI-2X solute interactions with AMOEBA polarizable solvent/environment and PME long-range electrostatics in Deep-HP. [Note](notes/ANI_AMOEBA_Inizan_ChemSci_2023.mmd) |
+| [Multipolar electrostatic kriging](https://doi.org/10.1021/acs.jctc.6b00457) | Learns geometry-dependent atomic multipoles for polarizable electrostatics. | Uses kriging to predict QTAIM atomic multipoles for all natural amino acids, including charged variants, and reconstruct electrostatic interaction energies. [Note](notes/AA_Multipole_Kriging_Fletcher_Popelier_JCTC_2016.mmd) |
+| [DMFF](https://github.com/deepmodeling/DMFF) | Differentiable molecular force-field ecosystem for polarizable and long-range classical terms. | No mmd note in this repository yet. |
+| [OpenMM](https://github.com/openmm/openmm) | Production molecular simulation engine with PME, polarizable models, and custom forces. | No mmd note in this repository yet. |
+| [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack) | Atomistic ML toolkit with modules for atomistic properties and extensible model components. | No SchNetPack-specific mmd note yet; related architecture note: [SchNet](notes/SchNet_Schutt_JCP_2018.mmd). |
+| [FeNNol / FeNNix](https://github.com/FeNNol-tools/FeNNol) | Force-field-enhanced NNP direction; useful to watch for local + long-range energy decomposition. | Modular JAX library for building force-field-enhanced NNPs, including physics modules such as Coulomb/Ewald terms and charge equilibration. [Note](notes/FENNIX.mmd) |
 
 ---
 
