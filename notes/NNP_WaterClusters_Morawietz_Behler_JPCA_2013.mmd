@@ -1,0 +1,399 @@
+\title{
+A Density-Functional Theory-Based Neural Network Potential for Water Clusters Including van der Waals Corrections
+}
+
+\author{
+Tobias Morawietz and Jörg Behler* \\ Lehrstuhl für Theoretische Chemie, Ruhr-Universität Bochum, 44780 Bochum, Germany
+}
+Downloaded via FUDAN UNIV on April 20, 2026 at 15:43:42 (UTC). See https://pubs.acs.org/sharingguidelines for options on how to legitimately share published articles.
+
+\begin{abstract}
+The fundamental importance of water for many chemical processes has motivated the development of countless efficient but approximate water potentials for largescale molecular dynamics simulations, from simple empirical force fields to very sophisticated flexible water models. Accurate and generally applicable water potentials should fulfill a number of requirements. They should have a quality close to quantum chemical methods, they should explicitly depend on all degrees of freedom including all relevant manybody interactions, and they should be able to describe molecular dissociation and recombination. In this work, we present a high-dimensional neural network (NN) potential for
+![](https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-01.jpg?height=449&width=842&top_left_y=737&top_left_x=1092)
+water clusters based on density-functional theory (DFT) calculations, which is constructed using clusters containing up to 10 monomers and is in principle able to meet all these requirements. We investigate the reliability of specific parametrizations employing two frequently used generalized gradient approximation (GGA) exchange-correlation functionals, PBE and RPBE, as reference methods. We find that the binding energy errors of the NN potentials with respect to DFT are significantly lower than the typical uncertainties of DFT calculations arising from the choice of the exchange-correlation functional. Further, we examine the role of van der Waals interactions, which are not properly described by GGA functionals. Specifically, we incorporate the D3 scheme suggested by Grimme (J. Chem. Phys. 2010, 132, 154104) in our potentials and demonstrate that it can be applied to GGA-based NN potentials in the same way as to DFT calculations without modification. Our results show that the description of small water clusters provided by the RPBE functional is significantly improved if van der Waals interactions are included, while in case of the PBE functional, which is well-known to yield stronger binding than RPBE, van der Waals corrections lead to overestimated binding energies.
+\end{abstract}
+
+\section*{- INTRODUCTION}
+
+Understanding the properties of water is of crucial importance in many fields of science, from biological systems to electrochemisty and corrosion. \({ }^{1,2}\) Computer simulations can provide valuable insights provided that a reliable description of the atomic interactions is available. While high-quality results can be obtained by first-principles methods, e.g., in the form of ab initio molecular dynamics (MD) simulations based on density-functional theory (DFT), \({ }^{3,4}\) a direct application of electronic structure calculations on-the-fly is computationally very demanding for extended simulations of large systems. Consequently, the development of more efficient interatomic potentials is a very active field of research.
+
+The starting point for the construction of any interatomic potential is the dependence of the Hamiltonian on the positions and charges of the nuclei as well as on the total number of electrons in the system. Since, in turn, the Hamiltonian completely defines the energy, a very complicated and generally unknown high-dimensional function, the potential-energy surface (PES), exists, which yields the total energy of a system if the atomic structure is provided. If an efficient way could be found to construct this function analytically without solving the Schrödinger equation again and again for any new atomic configuration, highly efficient MD
+simulations could be carried out. There are two fundamentally different approaches to obtain such analytic PESs. One possibility is to derive a simplified PES by introducing a series of more or less drastic physical approximations leading in the extreme case to simple classical force fields. Alternatively, a set of electronic structure calculations can be carried out at the highest affordable quality level for a number of representative atomic configurations, which is then fitted by very flexible mathematical functions to approximate the unknown PES as accurately as possible.
+
+In the case of water, many types of interactions contribute to the total shape of the PES: polar covalent bonds within the water monomers, hydrogen-bonds between nearest neighbor molecules, long-range electrostatic forces, and van der Waals interactions. In the most basic models for water, these contributions are completely separated and treated by simple analytic terms. In the most efficient water force fields, the internal degrees of freedom of the individual water molecules
+
+\footnotetext{
+Special Issue: Joel M. Bowman Festschrift
+Received: February 2, 2013
+Revised: April 4, 2013
+Published: April 4, 2013
+}
+are even completely eliminated by freezing the monomer geometries, e.g., in the popular TIP4P \({ }^{5}\) or SPC/E \({ }^{6}\) water potentials. More sophisticated water force fields include flexible monomers and/or polarization, \({ }^{7-9}\) and in a few force fields it is even possible to make and break chemical bonds, \({ }^{10-12}\) i.e., to dissociate and recombine water.
+
+Most of the commonly used water force fields have been parametrized to reproduce important experimentally determined physical properties of liquid water. Therefore, these potentials often have a limited transferability, i.e., they are not equally well applicable to different phases of water like the bulk liquid, ice or isolated clusters. An unbiased approach to construct water potentials can be based on high-level ab initio reference data yielding so-called "ab initio potentials". Many accurate ab initio water potentials have been reported in the literature. \({ }^{13-21}\) A comprehensive summary of even the most important water potentials is beyond the scope of this paper, and the interested reader is referred to a number of excellent reviews. \({ }^{5,22-24}\)
+
+In the present work, we investigate the applicability of artificial neural networks (NNs), \({ }^{25}\) a very flexible mathematical class of functions, to represent the PES of small water clusters using DFT as reference method. NNs are ideal candidates for constructing PESs as it has been proven that they are in principle able to approximate any unknown function with arbitrary accuracy. \({ }^{26}\) Although DFT is not the optimum choice for the description of the properties of water clusters, the topology of the DFT PES is very similar to the PES of higherlevel wave function methods. Further, DFT offers the best compromise between accuracy and efficiency. Therefore, DFT is a suitable benchmark method for the primary aim of the present work, which is to show that complex first-principles PESs of water clusters can be described by NN potentials without a significant reduction of accuracy. This work represents an intermediate step toward the construction of an NN PES that is equally applicable to clusters, liquid water, and ice.
+
+In recent years, NN potentials have been constructed for a number of systems \({ }^{27,28}\) including water. Surprisingly, only two NN potentials for single fully flexible water molecules have been reported to date. \({ }^{29,30}\) For all NN potentials applicable to more than one water molecule, the internal structure of the monomers has been frozen. In 1997, No et al. presented a NN potential for the water dimer, \({ }^{31}\) and this work has later been extended to include polarization energies in the TIP4P water model. \({ }^{32}\) While this potential is applicable to bulk water, still many of the limitations of the TIP4P model are present. In 1998, Gassner et al. reported a similar potential, \({ }^{33}\) which was further extended to describe three-body interactions in the solvation of \(\mathrm{Al}^{3+}\) ions. While also here the internal monomer degrees of freedom have not been included, this work still represents a major conceptual improvement since the permutation symmetry of chemically equivalent atoms has been considered explicitly. Another possibility to include the polarization of water has been suggested by Handley and Popelier. \({ }^{34,35}\) In their work, atom-centered multipoles are fitted to the electron density using NNs, which allows one to calculate the electrostatic contribution to the total energy. In spite of all this work, no full-dimensional and reactive NN PES for systems containing several water molecules has been reported to date.
+
+Building on our previous work, \({ }^{36,37}\) here we present a NN potential for water clusters covering the range from the
+monomer to the decamer. Two different functionals, \(\mathrm{PBE}^{38}\) and RPBE, \({ }^{39}\) have been used to describe electronic exchange and correlation in the DFT reference calculations. This enables one to compare the uncertainty of the PES resulting from the choice of the exchange-correlation functional and the errors arising from fitting the NNs.
+
+A critical aspect of any PES for water is the description of nonbonded interactions. It is well-known that dispersion (van der Waals) interactions are not correctly included in DFT calculations employing generalized gradient approximation (GGA) functionals, and a number of methods have been proposed to overcome this limitation, \({ }^{40}\) from van der Waals density functionals \({ }^{41}\) via atom-density based corrections \({ }^{42}\) to dispersion corrected pseudo potentials. \({ }^{43}\) However, instead of applying a correction to the DFT data before constructing the NN PESs, we follow a different approach using a scheme suggested by Grimme, \({ }^{44}\) which introduces a simple additive correction to the energy and forces. Since NN potentials can reproduce DFT PESs numerically very accurately, the Grimme scheme can also be applied directly to the NN energies and forces without modification. We find that the van der Waalscorrected NN PES based on the RPBE functional is of excellent quality and very close to coupled cluster calculations, while the NN PES constructed using the PBE functional shows strong overbinding. This different behavior, which is in good agreement with previous DFT work of Tonigold and Groß, \({ }^{45}\) is a consequence of well-known strong binding present in the case of the PBE functional, which is further increased by adding attractive van der Waals corrections. On the other hand, in the case of the RPBE functional, which generally yields weaker binding energies for water, adding attractive interactions yields an improved description of the PES.
+
+\section*{- HIGH-DIMENSIONAL NN POTENTIALS}
+
+In the past two decades, artificial NNs have been used by a number of groups to construct very accurate PESs for molecules in the gas phase \({ }^{30,46-51}\) and molecules interacting with metal surfaces. \({ }^{52-57}\) Different NN approaches have been developed for this purpose, and several types of electronic structure calculations from DFT to high-level wave function methods have been used as a reference to determine the fitting parameters of the NNs.
+
+In the present work we employ the high-dimensional NN method suggested by Behler and Parrinello, \({ }^{58,59}\) which has recently been extended by explicit long-range electrostatic interactions, \({ }^{36,60}\) an important prerequisite for applications to polar solvents like water. The method has been described in detail elsewhere, and here we just provide a concise summary of its essential features. The total energy of a system containing \(N\) atoms is given by
+\[
+E_{\text {tot }}=E_{\text {short }}+E_{\text {elec }}
+\]
+as a sum of a "short range" energy \(E_{\text {short }}\) and the electrostatic energy \(E_{\text {elec }} \cdot E_{\text {short }}\) is a sum of environment-dependent atomic energy contributions \(E_{i}\)
+\[
+E_{\text {short }}=\sum_{i=1}^{N} E_{i}
+\]
+
+The local atomic environments are defined by a cutoff radius, which is typically between 6 and \(10 \AA\), and the positions of all neighboring atoms inside this cutoff sphere enter the atomic energies. The coordinates of the neighbors are described by a
+set of atom-centered many-body symmetry functions, \({ }^{59}\) which serves as input vector for an atomic feed-forward NN yielding the respective \(E_{i}\) as output. For training the weight parameters of the NNs, first the short-range energies and forces need to be extracted from the DFT data. This is done by removing the electrostatic energies and forces, which are calculated using environment-dependent charges \(q_{i}\) employing a second set of atomic NNs. For this purpose, DFT reference charges are used. There are many partitioning methods available in the literature to estimate atomic charges, and in the present work we use the Hirshfeld method. \({ }^{61}\)
+
+Formally, the electrostatic energies can become very large in value for short interatomic distances. Consequently, to avoid numerically unfavorable large variations in the resulting shortrange energies, the electrostatic energies and forces are screened for short interatomic distances \(r_{i j}\) by the screening function
+\[
+f_{\text {screen }}\left(r_{i j}\right)=\left\{\begin{array}{cl}
+\frac{1}{2}\left[1-\cos \left(\frac{\pi \cdot r_{i j}}{r_{\mathrm{s}}}\right)\right] & \text { for } r_{i j} \leq r_{\mathrm{s}} \\
+1 & \text { for } r_{i j}>r_{\mathrm{s}}
+\end{array}\right.
+\]
+
+The parameter \(r_{\mathrm{s}}\) determines the range of the screening function, and the electrostatic energy of a nonperiodic system like a water cluster is then given by a screened Coulomb's law,
+\[
+E_{\mathrm{elec}}=\sum_{i=1}^{N-1} \sum_{j>i}^{N} \frac{q_{i} q_{j}}{r_{i j}} \cdot f_{\text {screen }}\left(r_{i j}\right)
+\]
+
+Screening the electrostatic interactions at short interatomic distances does not introduce errors in the NN PES, since the missing parts of the electrostatic energies and forces are automatically compensated by the remaining short-range components ensuring that the total energy is conserved. For the same reason, the rather short electrostatic screening radii do not result in artifacts in the forces, which otherwise could give rise to problems related to energy conservation in MD simulations. The introduction of explicit electrostatics in the NN potential is mainly relevant for including long-range interactions, which cannot be represented by the short-range atomic energies due to the employed symmetry function cutoff. Even in the case of periodic systems, in our approach electrostatic interactions are not truncated, but can be included via standard Ewald summation techniques. \({ }^{62}\) Further details on the high-dimensional NN method, which has been applied to a number of systems, \({ }^{63-70}\) can be found elsewhere. \({ }^{36,58-60}\)
+
+The accuracy of NN potentials is limited by the reliability of the underlying reference electronic structure calculations. One of the most critical limitations of GGA exchange-correlation functionals is the inability to take van der Waals interactions into account correctly. A family of methods, which is particularly easy to use, has been suggested by Grimme. \(44,71,72\)
+For the present work, this approach is very appealing since it can be applied to the final GGA-based NN PES in the same way as to the original underlying DFT reference data. Therefore, it is not necessary to include van der Waals interactions already in the training data of the NN, although this would also be possible. Instead, once constructed, a NN potential based on plain GGA data can be used in applications with and without van der Waals corrections at basically no additional computational costs, as the pair potentials of the Grimme scheme are computationally less demanding than the
+evaluation of the symmetry functions and NN atomic energies, and as only a single NN PES needs to be fitted to enable simulations with and without dispersion corrections.
+
+Specifically, in the present work we extend the NN potential for water using Grimme's D3 method. \({ }^{44}\) The van der Waals corrected NN energy is
+\[
+E_{\mathrm{tot}}=E_{\mathrm{short}}+E_{\mathrm{elec}}+E_{\mathrm{disp}}
+\]
+
+The expression for the dispersion correction energy \(E_{\text {disp }}\) is given in Grimme's original work \({ }^{44}\) including the parameters for various exchange-correlation functionals. Finally, we remark that the inclusion of dispersion interactions is not required due to limitations of the NN approach, which would be well able to describe these interactions via the short-range energies still having a notable range. Instead, the inclusion of \(E_{\text {disp }}\) is merely a consequence of the limitations of the specific reference method chosen in the present work.
+
+\section*{- COMPUTATIONAL DETAILS}
+
+The reference DFT calculations to construct the NN potentials have been carried out using the FHI-aims program, \({ }^{73}\) an allatom electron code employing numeric atom-centered basis functions. For the chosen "tier 2" basis set, the basis incompleteness and the basis set superposition errors have been carefully checked. They are in the order of \(3 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) for binding energies and thus are much smaller than typical hydrogen bonds determining the structure of the water clusters. All other parameters of the calculation, such as integration grids and radial basis function cutoffs, have been converged to ensure energy errors of less than \(1 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\).
+The reference structures to train the NNs were generated systematically in an iterative process by alternating improvements of the NN potentials and replica-exchange MD (REMD) simulations \({ }^{74}\) based on preliminary NN potentials to suggest new structures. For this purpose TiReX, \({ }^{75}\) a parallel driver based on the TINKER molecular modeling package, \({ }^{76}\) has been used. The integration time step was 0.5 fs , and swap attempts between replicas were made every 100 fs . We used eight replicas at eight different temperatures, linearly distributed between 50 and 250 K , and the Bussi-Donadio-Parrinello thermostat \({ }^{77}\) to control the temperature. Further details on the systematic construction of the training set can be found elsewhere. \({ }^{36,37}\) The finally obtained reference structures were split randomly into a training set ( \(90 \%\) ) and an independent test set (10\%), which allows estimating the accuracy of the NN PESs for structures not included in the training set.
+
+The NN potentials were constructed using our NN program RuNNer. \({ }^{78}\) The atomic NNs contain two hidden layers with 70 nodes each for the short-range and for the electrostatic part. Nineteen and 21 symmetry functions were used to describe the atomic environment of the hydrogen and the oxygen atoms, respectively. The specific parameters defining the symmetry functions are the same for the short-range and the long-range part and can be found in ref 37. The cutoff radii for the symmetry functions and for the screening function have been tested systematically, and we found a value of \(10 \AA\) to provide very accurate potentials. The weight parameters were optimized iteratively using the global extended Kalman filter algorithm \({ }^{79}\) after applying the normalization scheme of Nguyen and Widrow. \({ }^{80}\)
+
+The accuracy of the NN PESs is determined using the binding energies of the water clusters instead of total energies to obtain a physically meaningful energy range. The binding
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 1. RMSEs of the Total Energies \(E\left(\mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\right)\), Forces \(F(\mathrm{meV} / \AA)\), and Charges \(q^{-3}\left(10^{-3}\right)\) of the Training Structures for the Full Data Set and for Clusters Containing \(\boldsymbol{n}\) Monomers \({ }^{\boldsymbol{a}}\)}
+\begin{tabular}{|l|l|l|l|l|}
+\hline \multicolumn{5}{|c|}{NN(PBE)} \\
+\hline \(n \mathrm{H}_{2} \mathrm{O}\) & structures & RMSE \(E\) & RMSE \(F\) & RMSE \(q\) \\
+\hline 1-10 & 39,848 \((4,342)\) & 2.26 (2.50) & 64.35 (67.36) & 2.36 (2.50) \\
+\hline 1 & 5,103 (514) & 1.08 (1.05) & 12.99 (12.76) & 0.75 (0.75) \\
+\hline 2 & 10,740 \((1,181)\) & 2.17 (2.24) & 19.85 (20.73) & 1.12 (1.42) \\
+\hline 3 & 1,492 (165) & 2.74 (4.16) & 32.57 (37.04) & 1.73 (1.70) \\
+\hline 4 & 1,558 (161) & 2.23 (2.34) & 34.23 (35.15) & 1.92 (1.97) \\
+\hline 5 & 1,716 (202) & 2.17 (2.17) & 38.13 (39.38) & 2.05 (2.02) \\
+\hline 6 & 3,373 (365) & 2.23 (2.06) & 49.23 (50.08) & 2.13 (2.24) \\
+\hline 7 & 3,527 (398) & 2.64 (2.84) & 62.66 (59.69) & 2.56 (2.75) \\
+\hline 8 & 3,672 (423) & 2.55 (2.81) & 64.15 (64.27) & 2.63 (2.75) \\
+\hline 9 & 4,255 (468) & 2.45 (2.56) & 71.62 (74.73) & 2.57 (2.70) \\
+\hline 10 & 4,412 (465) & 2.56 (3.19) & 88.00 (97.12) & 2.67 (2.83) \\
+\hline \multicolumn{5}{|c|}{NN(RPBE)} \\
+\hline \(n \mathrm{H}_{2} \mathrm{O}\) & structures & RMSE \(E\) & RMSE \(F\) & RMSE \(q\) \\
+\hline 1-10 & 41,295 \((4,572)\) & 2.11 (2.25) & 54.20 (54.50) & 1.90 (2.00) \\
+\hline 1 & 5,073 (544) & 1.09 (1.11) & 9.97 (9.67) & 0.50 (0.50) \\
+\hline 2 & 10,827 \((1,179)\) & 2.33 (2.41) & 20.16 (20.13) & 0.90 (1.04) \\
+\hline 3 & 1,569 (165) & 2.41 (2.24) & 29.19 (28.01) & 1.48 (1.46) \\
+\hline 4 & 1,596 (181) & 2.20 (2.18) & 31.72 (31.40) & 1.66 (1.79) \\
+\hline 5 & 1,891 (217) & 2.11 (2.06) & 35.56 (36.39) & 1.83 (1.83) \\
+\hline 6 & 3,778 (425) & 1.96 (2.24) & 44.76 (45.32) & 1.81 (1.91) \\
+\hline 7 & 3,892 (457) & 2.14 (2.31) & 52.53 (51.40) & 1.99 (2.04) \\
+\hline 8 & 4,748 (500) & 2.09 (2.24) & 55.70 (55.05) & 1.97 (2.04) \\
+\hline 9 & 3,445 (399) & 2.22 (2.47) & 61.35 (59.22) & 2.11 (2.25) \\
+\hline 10 & 4,476 (505) & 2.25 (2.64) & 72.11 (74.65) & 2.18 (2.33) \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) The values for the structures in the independent test sets are given in brackets.
+energy per water monomer \(E_{\text {Bind }}\) of a cluster containing \(n\) molecules is given by
+\[
+E_{\mathrm{Bind}}=\frac{1}{n}\left(E_{\left(\mathrm{H}_{2} \mathrm{O}\right)_{n}}-n \cdot E_{\mathrm{H}_{2} \mathrm{O}}\right)
+\]
+\(E_{\mathrm{H}_{2} \mathrm{O}}\) is the energy of a fully optimized isolated water molecule. Further, we investigate the stepwise formation energy \(E_{\text {Form }}\), which is defined as
+\[
+E_{\mathrm{Form}}=E_{\left(\mathrm{H}_{2} \mathrm{O}\right)_{n}}-E_{\left(\mathrm{H}_{2} \mathrm{O}\right)_{n-1}}-E_{\mathrm{H}_{2} \mathrm{O}}
+\]
+with \(E_{\left(\mathrm{H}_{2} \mathrm{O}\right)_{n-1}}\) being the global minimum energy of a water cluster containing \(n-1\) molecules.
+
+\section*{- RESULTS}
+
+Reference Configurations. The composition of the reference data sets used to train the NNs is of crucial importance for the accuracy and reliability of the resulting potentials. It has been suggested to construct training sets in a systematic way employing MD simulations to sample relevant configurations. \({ }^{47,65,81}\) This method is not self-starting and requires a preliminary potential fitted to an initial set of structures. Here, we follow a similar method described in ref 37 for smaller water clusters up to the hexamer. Specifically, the initial data sets were generated using random clusters and subsequently improved by adding structures sampled in REMD simulations. In the present work we extend this data set in the same way to larger water clusters by including additional reference structures for \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=7-10}\). After having obtained a sufficiently large set of reference structures from MD trajectories using preliminary potentials, the random configurations were excluded from the data set since they typically
+represent high-energy configurations that are not relevant for applications at chemically meaningful temperatures.
+
+Table 1 shows the root mean squared error (RMSE) for energies, forces, and charges using the final NN potentials separately for each cluster size as well as the final training set composition. The energy error is in the order of \(2 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) for all clusters, which is about a factor of 2 smaller than the RMSE obtained with the previous potential for \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=3-6 \cdot}{ }^{37}\) This significant improvement of the accuracy is a consequence of the more realistic composition of the reference data set. Even though the randomly generated configurations were removed, the data set still includes many distorted structures with high binding energies, as can be seen from the regression plots in Figure 1 (PBE) and Figure 2 (RPBE). For both functionals, the NN potentials are based on data covering approximately the same binding energy range of \(800 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\). The RMSEs of the forces and charges are \(60 \mathrm{meV} / \AA\) and \(0.002 e\), respectively, and thus very small.
+
+Structural and Energetic Properties of the Clusters. In order to examine the quality of the constructed NN potentials in more detail, we located a number of local and global minima on the DFT and NN PESs for water clusters up to the decamer. The obtained binding energies and geometries have been analyzed and compared to the results of recent high-level quantum chemical calculations. Figure 3 shows the investigated low-lying minima of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\). Initial structures were taken from ref 82 and fully optimized with the L-BFGS algorithm. \({ }^{83}\) Binding energies and average adjacent oxygen-oxygen distances for all structures are listed in Tables 2 and 3.
+
+First we focus on the comparison between the NN potentials and the DFT reference data without van der Waals corrections.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-05.jpg?height=727&width=552&top_left_y=235&top_left_x=350}
+\captionsetup{labelformat=empty}
+\caption{Figure 1. Comparison of the binding energies obtained from the NN(PBE) potential and from DFT (a). Configurations in the training set are shown in black, and the test set structures are in red. Panel (b) shows the binding energy difference between DFT and the NN potential.}
+\end{figure}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-05.jpg?height=730&width=552&top_left_y=1196&top_left_x=348}
+\captionsetup{labelformat=empty}
+\caption{Figure 2. Comparison of the binding energies obtained from the NN(RPBE) potential and from DFT (a). Configurations in the training set are shown in black, and the test set structures are in red. Panel (b) shows the binding energy difference between DFT and the NN potential.}
+\end{figure}
+
+Except for the Prism hexamer isomer, which adopted the very similar Book geometry after optimization, all minima could be obtained correctly using the NN potentials. The final geometries show an excellent agreement with the reference DFT structures with mean errors of only \(0.008 \AA\) for the average distance of adjacent oxygen atoms. The mean errors of the binding energies are 1.4 and \(0.6 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) for PBE and RPBE and thus are well below the convergence error of the DFT calculations resulting from the limited basis set size. More importantly, the energetic ordering of different isomers of one cluster size is correct in almost all cases. Especially the water hexamer represents a challenging test for each water potential
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-05.jpg?height=905&width=872&top_left_y=226&top_left_x=1105}
+\captionsetup{labelformat=empty}
+\caption{Figure 3. Minimum energy structures for the water dimer to water decamer. The binding energies obtained with DFT, the NN potentials, and recent \(\operatorname{CCSD}(\mathrm{T}) / \operatorname{CBS}\) calculations are listed in Table 2. In Table 3 average adjacent oxygen-oxygen distances are shown.}
+\end{figure}
+due to the large number of configurations with very similar energies. Both NN potentials are consistent with DFT, predicting the correct energetic sequence Book-1 < Cyclic \(\approx\) Book-2 < Cage < Bag for PBE and Cyclic < Book-1 < Book-2 < Bag < Cage for RPBE (see Figure 4). For the water octamer, the S4 configuration is found to be more stable than the D2d isomer, which is in agreement with the DFT values. Only for the decamer the energetic ordering of the investigated PP1 and PP2 isomers cannot be reproduced. However, both isomer are almost energetically degenerate ( \(\Delta E<0.5 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) ).
+
+Having confirmed that the NN potentials are in quantitative agreement with the underlying reference DFT calculations, we now turn to the results for the van der Waals corrected NN potentials. Standard gradient-based DFT functionals, such as PBE and RPBE, cannot correctly describe van der Waals forces, which are important for many systems such as water clusters. Santra et al. have shown that several popular functionals fail to predict the correct energetic ordering of low-lying hexamer isomers. Moreover, none of the investigated functionals was able to predict the correct global minimum. \({ }^{84}\) However, augmenting DFT calculations with van der Waals correction schemes leads to significantly improved results. \({ }^{84,85}\) The same observations have been made for the NN potentials concerning the isomers of the hexamer. In combination with the D3 method, the PBE and the RPBE-based NN potentials both predict the Prism isomer to be the global minimum configuration, which is in agreement with recent CCSD(T) calculations extrapolated to the complete basis set (CBS) limit performed by Bates and Tschumper \({ }^{86}\) and Temelso et al. \({ }^{82}\) As shown in Figure 4 also the energetic ordering Prism < Cage < Book-1 < Book-2 < Cyclic < Bag is consistent with their results. The best agreement of the relative binding energies is found for the NN(RPBE)-D3 potential, while for NN(PBE)-D3 the Prism, Cage, and Book isomers all have too close energies within
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 2. Binding Energies \(\left(\mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\right)\) for Minimum Energy Structures of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\) Clusters \({ }^{a}\)}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline \multirow[b]{2}{*}{\(n \mathrm{H}_{2} \mathrm{O}\)} & \multicolumn{3}{|c|}{PBE} & \multicolumn{3}{|c|}{RPBE} & \multirow[b]{2}{*}{CCSD(T)/CBS \({ }^{\text {b }}\)} \\
+\hline & DFT & NN & NN-D3 & DFT & NN & NN-D3 & \\
+\hline 2 Global & -111.6 & -114.1 & -123.7 & -83.7 & -83.2 & -108.2 & -109.0 \\
+\hline 3 Global & -236.2 & -236.7 & -256.5 & -167.8 & -166.5 & -219.7 & -227.0 \\
+\hline 4 Global & -319.7 & -321.0 & -345.9 & -235.2 & -235.0 & -292.2 & -297.4 \\
+\hline 5 Global & -338.1 & -338.5 & -363.0 & -251.4 & -250.9 & -306.4 & -312.3 \\
+\hline 6 Prism & -339.9 & & -382.3 & -247.5 & & -329.4 & -333.5 \\
+\hline 6 Cage & -342.8 & -342.9 & -381.7 & -245.8 & -247.0 & -324.9 & -331.9 \\
+\hline 6 Book-1 & -349.2 & -349.7 & -380.6 & -255.7 & -255.0 & -322.2 & -328.9 \\
+\hline 6 Book-2 & -347.2 & -348.8 & -380.3 & -254.1 & -254.9 & -322.2 & -326.3 \\
+\hline 6 Cyclic & -347.4 & -348.6 & -372.0 & -259.7 & -260.3 & -314.6 & -322.4 \\
+\hline 6 Bag & -341.6 & -342.5 & -376.3 & -249.1 & -249.1 & -318.5 & -322.3 \\
+\hline 7 PR1 & -368.0 & -369.4 & -409.8 & -266.6 & -266.8 & -349.2 & -355.4 \\
+\hline 8 S4 & -409.3 & -412.1 & -458.9 & -294.9 & -295.4 & -388.2 & -393.3 \\
+\hline 8 D2d & -409.1 & -410.0 & -456.4 & -294.8 & -294.8 & -387.6 & -393.2 \\
+\hline 9 D2dDD & -412.9 & -412.1 & -456.5 & -300.0 & -299.3 & -388.0 & -393.7 \\
+\hline 10 PP1 & -423.2 & -419.3 & -465.2 & -307.7 & -306.9 & -397.9 & -402.8 \\
+\hline 10 PP2 & -422.9 & -421.0 & -467.0 & -307.4 & -307.1 & -398.8 & -402.8 \\
+\hline MAE \({ }^{c}\) & & 1.4 & & & 0.6 & & \\
+\hline MAE \({ }^{d}\) & 16.7 & 17.9 & 51.5 & 76.9 & 76.4 & 5.3 & \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) Bold numbers indicate the most stable isomer for the water hexamer, octamer, and decamer. \({ }^{b}\) Values taken from ref 82. \({ }^{c}\) Mean absolute error compared to DFT. \({ }^{d}\) Mean absolute error compared to CCSD(T)/CBS.
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 3. Average Adjacent Oxygen-Oxygen Distances ( Å) for Minimum Energy Structures of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\) Clusters}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline \multirow[b]{2}{*}{\(n \mathrm{H}_{2} \mathrm{O}\)} & \multicolumn{3}{|c|}{PBE} & \multicolumn{3}{|c|}{RPBE} & \multirow[b]{2}{*}{MP2 \({ }^{\text {a }}\)} \\
+\hline & DFT & NN & NND3 & DFT & NN & NND3 & \\
+\hline 2 global & 2.901 & 2.895 & 2.895 & 3.028 & 3.016 & 3.014 & 2.917 \\
+\hline 3 global & 2.768 & 2.780 & 2.780 & 2.901 & 2.921 & 2.951 & 2.803 \\
+\hline 4 global & 2.704 & 2.708 & 2.712 & 2.811 & 2.820 & 2.833 & 2.749 \\
+\hline 5 global & 2.684 & 2.687 & 2.693 & 2.784 & 2.799 & 2.801 & 2.731 \\
+\hline 6 Prism & 2.818 & & 2.838 & 2.934 & & 2.945 & 2.840 \\
+\hline 6 Cage & 2.786 & 2.792 & 2.794 & 2.931 & 2.954 & 2.911 & 2.812 \\
+\hline 6 Book-1 & 2.733 & 2.745 & 2.753 & 2.858 & 2.859 & 2.847 & 2.771 \\
+\hline 6 Book-2 & 2.735 & 2.744 & 2.752 & 2.856 & 2.863 & 2.860 & 2.772 \\
+\hline 6 Cyclic & 2.670 & 2.684 & 2.688 & 2.770 & 2.781 & 2.778 & 2.720 \\
+\hline 6 Bag & 2.736 & 2.734 & 2.747 & 2.862 & 2.866 & 2.860 & 2.774 \\
+\hline 7 global & 2.790 & 2.810 & 2.809 & 2.886 & 2.890 & 2.903 & 2.808 \\
+\hline 8 S4 & 2.765 & 2.761 & 2.779 & 2.901 & 2.903 & 2.872 & 2.790 \\
+\hline 8 D2d & 2.765 & 2.766 & 2.785 & 2.898 & 2.904 & 2.861 & 2.790 \\
+\hline 9 global & 2.751 & 2.754 & 2.773 & 2.882 & 2.887 & 2.850 & 2.780 \\
+\hline 10 PP1 & 2.760 & 2.772 & 2.790 & 2.891 & 2.895 & 2.861 & 2.787 \\
+\hline 10 PP2 & 2.760 & 2.770 & 2.788 & 2.890 & 2.894 & 2.857 & 2.788 \\
+\hline MAE \({ }^{\text {b }}\) & & 0.008 & & & 0.008 & & \\
+\hline MAE \({ }^{c}\) & 0.032 & 0.026 & 0.016 & 0.091 & 0.097 & 0.086 & \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) Geometries taken from ref \(82 .{ }^{b}\) Mean absolute error compared to DFT. \({ }^{c}\) Mean absolute error compared to MP2.
+an interval of \(2 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\). Adding van der Waals corrections to the NN(RPBE) potential leads to a significant improvement of total binding energies, the mean error compared to \(\operatorname{CCSD}(\mathrm{T}) /\) CBS decreases from over \(70 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) to about \(5 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\). Also, the trend in the formation energies (shown in Figure 5) is well reproduced. For the PBE-based NN, however, the overbinding already present in the uncorrected functional is enhanced, so that the deviations of the final binding energies from the CCSD(T)/CBS values increase to about \(50 \mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\).
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-06.jpg?height=678&width=622&top_left_y=1190&top_left_x=1230}
+\captionsetup{labelformat=empty}
+\caption{Figure 4. Relative binding energies \(\Delta E_{\text {Bind }}\) for water hexamer isomers relative to the binding energy of the Prism isomer. For \(\mathrm{NN}(\mathrm{PBE})\) and NN(RPBE), the energies were calculated relative to the corresponding DFT values, because the Prism isomer is not a stable configuration on the NN-PESs. CCSD(T)/CBS values were taken from ref 82 (a) and ref 86 (b).}
+\end{figure}
+
+An analysis of the NN-D3-optimized geometries shows promising results for both reference functionals. Figure 6 shows the average oxygen-oxygen distance for the global minima of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\) compared to the values obtained from MP2 geometries published in ref 82. The average MP2 O-O distance decreases from the dimer to the pentamer but increases again for the hexamer, since for the hexamer configurations a transition from a two-dimensional to a threedimensional hydrogen-bond arrangement occurs. For the plain DFT functionals, the global minimum hexamer isomer is still planar (the Cyclic isomer) and semiplanar (the Book isomer) for the RPBE and PBE PESs, respectively. Consequently, this transition is observed starting at the water heptamer. For
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-07.jpg?height=1058&width=630&top_left_y=230&top_left_x=310}
+\captionsetup{labelformat=empty}
+\caption{Figure 5. Binding energies \(E_{\text {Bind }}\) (a) and formation energies \(E_{\text {Form }}\) (b) for the global minimum structures of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\) computed with DFT, the NN potentials, and CCSD(T)/CBS. \({ }^{82}\)}
+\end{figure}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-07.jpg?height=633&width=618&top_left_y=1452&top_left_x=319}
+\captionsetup{labelformat=empty}
+\caption{Figure 6. Average adjacent oxygen-oxygen distances (Å) for global minimum structures of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-10}\) clusters. The MP2 values were evaluated using geometries taken from ref 82.}
+\end{figure}
+\(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=2-5}\), adding van der Waals corrections does not significantly change the \(\mathrm{O}-\mathrm{O}\) distances. For the hexamer and larger clusters, however, the geometries are strongly improved. The \(\mathrm{O}-\mathrm{O}\) distances obtained with NN(PBE)-D3 are in almost perfect agreement with the MP2 reference values for these cluster. For NN(RPBE)-D3, the correct trend with increasing cluster size is observed. However, the \(\mathrm{O}-\mathrm{O}\) distances are still too large. The DFT-RPBE geometries for the Prism hexamer and the heptamer show deviations from the MP2 structures, exhibiting one broken hydrogen-bond. Using the van der Waals
+corrected NN(RPBE) potential, the correct structures could be obtained.
+Finally, we note that, although NNs enable a very reliable representation of first-principles PESs, the energy differences between several isomers are very small and beyond the accuracy of most electronic structure calculations. Further, in MD simulations at typical temperatures, frequent transitions will occurr between such structures leading to significant populations of several isomers.
+
+\section*{- DISCUSSION}
+
+The results presented above show that NN potentials are able to describe water clusters up to the decamer with excellent accuracy, which has been the main goal of this work. Another interesting question is whether the present NN parametrizations are also applicable to larger water clusters. In the case of simple water force fields, this is not a problem since their functional form usually prevents spectacular failures while it also does not allow one to achieve a very high numerical accuracy. Water potentials using truncated many-body expansions are also applicable to larger systems. \({ }^{13}\) In the case of NN potentials, this cannot be taken for granted. The functional form of NNs is extremely flexible to enable a close numerical agreement with the electronic structure reference data. The price to pay is a large number of required training structures and limited extrapolation capabilities. Still, an advantage of using NNs is that whenever situations are found in which the NN is not reliable, the potential can be improved by adding additional training data without requiring changes in the functional form.
+We have tested our NN PESs for both functionals for water clusters containing up to 16 monomers. The initial configurations for \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=11-16}\) were taken from the work of Su et al. \({ }^{87}\) who performed geometry optimizations with the X3LYP functional. They are shown in Figure 7. In Table 4, the
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/8af6c61f-a5d3-40d8-956b-15649ba06048-07.jpg?height=527&width=550&top_left_y=1607&top_left_x=1267}
+\captionsetup{labelformat=empty}
+\caption{Figure 7. Minimum energy structures for \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=11-16}\). The binding energies obtained with DFT and the NN potentials are listed in Table 4.}
+\end{figure}
+energies obtained for the NN reoptimized structures are listed. For the NN(PBE) PES, the predictive power is rather disappointing and only the dodecamer is correctly predicted, while the cluster containing 11 molecules shows significant distortions after the optimization using the NN potential. All larger clusters lead to structures that differ too much from the PBE DFT minima for a direct comparison. In the case of the NN(RPBE) PES, the performance is significantly better, and the correct minimum structures could be found up to the
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 4. Binding energies ( \(\mathrm{meV} / \mathrm{H}_{2} \mathrm{O}\) ) for Minimum Energy Structures of \(\left(\mathrm{H}_{2} \mathrm{O}\right)_{n=11-16}\) Clusters}
+\begin{tabular}{|l|l|l|l|l|}
+\hline \multirow[b]{2}{*}{\(n \mathrm{H}_{2} \mathrm{O}\)} & \multicolumn{2}{|c|}{PBE} & \multicolumn{2}{|c|}{RPBE} \\
+\hline & DFT & NN & DFT & NN \\
+\hline 11 Pr443 & -414.4 & \(-427.8^{a}\) & -298.4 & -302.6 \\
+\hline 12 Pr444 & -429.9 & -428.3 & -307.6 & -315.5 \\
+\hline 13 Pr454 & -435.0 & & -313.1 & -322.0 \\
+\hline 14 Pr2444 & -444.2 & & -319.9 & -334.0 \\
+\hline 15 Pr555 & -443.8 & & -320.7 & -340.7 \\
+\hline 16 Pr4444 & -443.7 & & -316.7 & -309.7 \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) The NN optimized structure shows a significant deviation from the DFT structure.
+hexadecamer. Beyond this cluster size also the NN(RPBE) PES cannot be applied anymore. There is no obvious reason why the RPBE PES should be more transferable than the PBE PES, and the present finding probably depends on the specific parametrizations.
+
+In general, the reason for the limited transferability is the description of the cluster structures in form of many-body symmetry functions. These contain additive terms growing with the number of neighbors. \({ }^{59}\) Consequently, for large numbers of monomers, the set of symmetry function values is outside the training region. This can easily be detected in practical applications, and an extension of the range of validity of the NN PES is straightforward. Once the number of monomers in the training structures is sufficiently large to fill the cutoff spheres defining the symmetry functions, the NN PESs will become applicable to bulk water without extrapolation. Work to reach this goal is currently in progress. We note that, in general, the discussed extrapolation phenomenon strongly depends on the choice of input coordinates for the NN. The high-dimensional NN method of Behler and Parrinello has been designed for large systems, and, if trained to bulk systems, this problem is not present, since for periodic systems the cutoff spheres are automatically filled. Thus, the most efficient way to construct a NN PES for bulk water would be to directly use bulk training data. Alternatively, it would be possible to use truncated many-body expansions, as has been proposed by Carrington and co-workers \({ }^{51}\) and also by Raff \({ }^{88}\) for other systems. Further, an NN adaption of the coordinates used by Bowman and co-workers \({ }^{13}\) would be feasible.
+
+Finally, some conclusions on the general applicability of NNs to construct PESs can be made. NNs are numerically very accurate and belong to the most precise functions for data fitting. This has been confirmed by the present work and many other potentials in the literature. Still, due to their very flexible functional form they can be unreliable in chemical situations which are very different from the structures present in the data set. This can and should be checked when NN potentials are used. The number of degrees of freedom that can be included depends on the particular choice of the NN type. The total energy expression of our high-dimensional NN scheme depends explicitly on the positions of all atoms in the system, but chemically irrelevant interactions are removed between distant atoms by employing cutoff functions. Consequently, the cutoff radius of the symmetry functions is a convergence parameter that needs to be tested and increased until the remaining error of the PES has converged to a sufficiently small value. By transforming the Cartesian coordinates of the atoms to many-body symmetry functions depending simultaneously on the positions of all neighboring atoms, \({ }^{59}\) even very high
+order many-body interactions are taken into account. Further, NN potentials are reactive in the sense that in contrast to most force fields, no bonds and atom types need to be specified. Like in electronic structure calculations, the energies and forces are calculated as a function of the atomic positions and chemical elements only. In principle, this enables one to study proton transport in water using NN potentials, although also the training set then needs to include structures along the reaction pathways, which is not yet the case in our work. An additional advantage of the presented NN method is its extreme efficiency compared with electronic structure calculations. On current computers, NN potentials are able to provide the energy and forces of at least 100 atoms per second and core, and the method is well suited for parallelization. This enables MD simulations of systems containing thousands of atoms on a routine basis. Also, an extension of our NN method to include further species is possible without any changes in the functional form, e.g., to include solvated ions or metal surfaces.
+
+\section*{- CONCLUSION}
+
+A high-dimensional NN potential for water clusters up to the decamer has been constructed using DFT calculations and two different exchange-correlation functionals, PBE and RPBE. The resulting NN PESs are in excellent agreement with the underlying DFT data for both functionals. The RMSE values of the energies and forces are extremely small: they are approximately 2 meV per monomer for the binding energies and about \(60 \mathrm{meV} / \AA\) for the forces. Also the DFT Hirshfeld charges are reproduced with a very small error of about \(0.002 e\). To overcome present limitations of GGA functionals in the description of van der Waals interactions, the NN total energy expression can be extended by a correction term taking dispersion interactions into account. Specifically, we have shown that the D3 method suggested by Grimme can be added in a straightforward way to NN PESs derived for plain GGA data.
+
+Of all investigated cluster geometries, only the prism structure of the hexamer has not been found in geometry optimizations employing the NN potentials. This is not unexpected, because the hexamer is notoriously difficult to describe due to many energetically close local minima. Nevertheless, all global minima are correctly predicted by DFT and the NN PESs. In accordance with previous studies carried out by other groups, we find that including van der Waals corrections leads to an overall improved quality of the DFT PES in the case of the RPBE functional, while the PBE functional provides better binding energies without dispersion corrections. The same trends have been found for the NN PESs, since they are numerically extremely close to the DFT data. A drawback of the current parametrizations based on rather small clusters is the limited extrapolation capability to larger clusters, which are not present in the training set. This deficiency can be removed by adding larger clusters to the training sets yielding converged PESs applicable to bulk water. This will be confirmed by work currently in progress.
+
+\section*{- AUTHOR INFORMATION}
+
+\section*{Corresponding Author}
+*E-mail: joerg.behler@theochem.ruhr-uni-bochum.de.
+
+\section*{Notes}
+
+The authors declare no competing financial interest.
+
+\section*{ACKNOWLEDGMENTS}
+
+This work was supported by the Cluster of Excellence RESOLV (EXC 1069) funded by the Deutsche Forschungsgemeinschaft and the DFG Emmy Noether program. T.M. thanks the Studienstiftung des Deutschen Volkes for a Ph.D. fellowship. Valuable discussions with Nongnuch Artrith, Evgeni Penev, and the FHI-aims team are gratefully acknowledged.
+
+\section*{REFERENCES}
+(1) Ball, P. Life's Matrix. A Biography of Water; University of California Press: Berkeley, CA, 2001.
+(2) Ludwig, R. Water: From Clusters to the Bulk. Angew. Chem., Int. Ed. 2001, 40, 1808-1827.
+(3) Car, R.; Parrinello, M. Unified Approach for Molecular-Dynamics and Density-Functional Theory. Phys. Rev. Lett. 1985, 55, 2471-2474.
+(4) Marx, D.; Hutter, J. Ab Initio Molecular Dynamics: Basic Theory and Advanced Methods; Cambridge University Press: Cambridge, U.K., 2009.
+(5) Jorgensen, W. L.; Chandrasekhar, J.; Madura, J. D.; Impey, R. W.; Klein, M. L. Comparison of Simple Potential Functions for Simulating Liquid Water. J. Chem. Phys. 1983, 79, 926-935.
+(6) Berendsen, H. J. C.; Grigera, J. R.; Straatsma, T. P. The Missing Term in Effective Pair Potentials. J. Phys. Chem. 1987, 91, 6269-6271.
+(7) Fanourgakis, G. S.; Xantheas, S. S. Development of Transferable Interaction Potentials for Water. V. Extension of the Flexible, Polarizable, Thole-Type Model Potential (TTM3-F, v. 3.0) to Describe the Vibrational Spectra of Water Clusters and Liquid Water. J. Chem. Phys. 2008, No. 128, 074506.
+(8) Yuet, P.; Blankschtein, D. Molecular Dynamics Simulation Study of Water Surfaces: Comparison of Flexible Water Models. J. Phys. Chem. B 2010, 114, 13786.
+(9) Kumar, R.; Wang, F.-F.; Jenness, G.; Jordan, K. A Second Generation Distributed Point Polarizable Water Model. J. Chem. Phys. 2010, 132, 014309.
+(10) van Duin, A. C. T.; Bryantsev, V. S.; Diallo, M. S.; Goddard, W. A.; Rahaman, O.; Doren, D. J.; Raymand, D.; Hermansson, K. Development and Validation of a ReaxFF Reactive Force Field for Cu Cation/Water Interactions and Copper Metal/Metal Oxide/Metal Hydroxide Condensed Phases. J. Phys. Chem. A 2010, 114, 9507.
+(11) Fogarty, J. C.; Aktulga, H. M.; Grama, A. Y.; van Duin, A. C. T.; Pandit, S. A. A Reactive Molecular Dynamics Simulation of the SilicaWater Interface. J. Chem. Phys. 2010, 132, 174704.
+(12) Pinilla, C.; Irani, A. H.; Seriani, N.; Scandolo, S. Ab Initio Parameterization of an All-Atom Polarizable and Dissociable Force Field for Water. J. Chem. Phys. 2012, 136, 114511.
+(13) Wang, Y. M.; Shepler, B. C.; Braams, B. J.; Bowman, J. M. FullDimensional, Ab Initio Potential Energy and Dipole Moment Surfaces for Water. J. Chem. Phys. 2009, 131, 054511.
+(14) Bowman, J. M.; Braams, B. J.; Carter, S.; Chen, C.; Czako, G.; Fu, B.; Huang, X.; Kamarchik, E.; Sharma, A. R.; Shepler, B. C.; Wang, Y.; Xie, Z. Ab-Initio-Based Potential Energy Surfaces for Complex Molecules and Molecular Complexes. J. Phys. Chem. Lett. 2010, 1, 1866-1874.
+(15) Wang, Y. M.; Bowman, J. M. Towards an Ab Initio Flexible Potential for Water, and Post-Harmonic Quantum Vibrational Analysis of Water Clusters. Chem. Phys. Lett. 2010, 491, 1-10.
+(16) Braams, B. J.; Bowman, J. M. Permutationally Invariant Potential Energy Surfaces in High Dimensionality. Int. Rev. Phys. Chem. 2009, 28, 577.
+(17) Bukowski, R.; Szalewicz, K.; Groenenboom, G.; van der Avoird, A. Predictions of the Properties of Water from First Principles. Science 2007, 315, 1249.
+(18) Bukowski, R.; Szalewicz, K.; Groenenboom, G. C.; van der Avoird, A. Polarizable Interaction Potential for Water from Coupled Cluster Calculations. I. Analysis of Dimer Potential Energy Surface. J. Chem. Phys. 2008, 128, 094313.
+(19) Torheyden, M.; Jansen, G. A New Potential Energy Surface for the Water Dimer Obtained from Separate Fits of Ab Initio
+
+Electrostatic, Induction, Dispersion and Exchange Energy Contributions. Mol. Phys. 2006, 104, 2101-2138.
+(20) Babin, V.; Medders, G. R.; Paesani, F. Toward a Universal Water Model: First Principles Simulations from the Dimer to the Liquid Phase. J. Phys. Chem. Lett. 2012, 3, 3765-3769.
+(21) Bartok, A. P.; Gillan, M. J.; Manby, F. R.; Csanyi, G. Machine learning for predictive condensed-phase simulation. arXiv.org, e-Print Arch., Condens. Matter 2013, No. arXiv: 1302.5680 [cond-mat.mtrl-sci].
+(22) Guillot, B. A Reappraisal of What We Have Learnt During Three Decades of Computer Simulations on Water. J. Mol. Liq. 2002, 101, 219-260.
+(23) Szalewicz, K.; Leforestier, C.; van der Avoird, A. Towards the Complete Understanding of Water by a First-Principles Computational Approach. Chem. Phys. Lett. 2009, 482, 1-14.
+(24) Vega, C.; Abascal, J. L. F. Simulating Water With Rigid NonPolarizable Models: A General Perspective. Phys. Chem. Chem. Phys. 2011, 13, 19663-19688.
+(25) Bishop, C. M. Neural Networks for Pattern Recognition; Oxford University Press: Oxford, U.K., 1995.
+(26) Cybenko, G. Approximation by Superpositions of a Sigmoidal Function. Math. Control Signals Syst. 1989, 2, 303-14.
+(27) Handley, C. M.; Popelier, P. L. A. Potential Energy Surfaces Fitted by Artificial Neural Networks. J. Phys. Chem. A 2010, 114, 3371-3383.
+(28) Behler, J. Neural Network Potential-Energy Surfaces in Chemistry: A Tool for Large-Scale Simulations. Phys. Chem. Chem. Phys. 2011, 13, 17930.
+(29) Manzhos, S.; Wang, X. G.; Dawes, R.; Carrington, T., Jr. A Nested Molecule-Independent Neural Network Approach for HighQuality Potential Fits. J. Phys. Chem. A 2006, 110, 5295-5304.
+(30) Nguyen, H. T. T.; Le, H. M. Modified Feed-Forward Neural Network Structures and Combined-Function-Derivative Approximations Incorporating Exchange Symmetry for Potential Energy Surface Fitting. J. Phys. Chem. A 2012, 116, 4629-4638.
+(31) No, K. T.; Chang, B. H.; Kim, S. Y.; Jhon, M. S.; Scheraga, H. A. Description of the Potential Energy Surface of the Water Dimer with an Artificial Neural Network. Chem. Phys. Lett. 1997, 271, 152-156.
+(32) Cho, K. H.; No, K. T.; Scheraga, H. A. A Polarizable Force Field for Water Using an Artificial Neural Network. J. Mol. Struct. 2002, 641, 77-91.
+(33) Gassner, H.; Probst, M.; Lauenstein, A.; Hermansson, K. Representation of Intermolecular Potential Functions by Neural Networks. J. Phys. Chem. A 1998, 102, 4596-4605.
+(34) Handley, C. M.; Popelier, P. L. A. Dynamically Polarizable Water Potential Based on Multipole Moments Trained by Machine Learning. J. Chem. Theory Comput. 2009, 5, 1474-1489.
+(35) Handley, C. M.; Hawe, G. I.; Kell, D. B.; Popelier, P. L. A. Optimal Construction of a Fast and Accurate Polarisable Water Potential Based on Multipole Moments Trained by Machine Learning. Phys. Chem. Chem. Phys. 2009, 11, 6365-6376.
+(36) Morawietz, T.; Sharma, V.; Behler, J. A Neural Network Potential-Energy Surface for the Water Dimer Based on EnvironmentDependent Atomic Energies and Charges. J. Chem. Phys. 2012, 136, 064103.
+(37) Morawietz, T.; Behler, J. A Full-Dimensional Neural Network Potential-Energy Surface for Water Clusters up to the Hexamer. Z. Phys. Chem. 2013, Submitted for publication.
+(38) Perdew, J. P.; Burke, K.; Ernzerhof, M. Generalized Gradient Approximation Made Simple. Phys. Rev. Lett. 1996, 77, 3865-3868.
+(39) Hammer, B.; Hansen, L. B.; Norskov, J. K. Improved Adsorption Energetics Within Density-Functional Theory Using Revised Perdew-Burke-Ernzerhof Functionals. Phys. Rev. B 1999, 59, 7413-7421.
+(40) Klimes, J.; Michaelides, A. Perspective: Advances and Challenges in Treating van der Waals Dispersion Forces in Density Functional Theory. J. Chem. Phys. 2012, 137, 120901.
+(41) Dion, M.; Rydberg, H.; Schröder, E.; Langreth, D.; Lundqvist, B. Van der Waals Density Functional for General Geometries. Phys. Rev. Lett. 2004, 92, 246401.
+(42) Tkatchenko, A.; Scheffler, M. Accurate Molecular van der Waals Interactions from Ground-State Electron Density and Free-Atom Reference Data. Phys. Rev. Lett. 2009, 102, 073005.
+(43) von Lilienfeld, O.; Tavernelli, I.; Rothlisberger, U.; Sebastiani, D. Optimization of Effective Atom Centered Potentials for London Dispersion Forces in Density Functional Theory. Phys. Rev. Lett. 2004, 93.
+(44) Grimme, S.; Antony, J.; Ehrlich, S.; Krieg, H. A Consistent and Accurate Ab Initio Parametrization of Density Functional Dispersion Correction (DFT-D) for the 94 Elements H-Pu. J. Chem. Phys. 2010, 132, 154104.
+(45) Tonigold, K.; Groß, A. Dispersive Interactions in Water Bilayers at Metallic Surfaces: A Comparison of the PBE and RPBE Functional Including Semiempirical Dispersion Corrections. J. Comput. Chem. 2012, 33, 695-701.
+(46) Prudente, F. V.; Neto, J. J. S. The Fitting of Potential Energy Surfaces Using Neural Networks. Application to the Study of the Photodissociation Processes. Chem. Phys. Lett. 1998, 287, 585-589.
+(47) Raff, L. M.; Malshe, M.; Hagan, M.; Doughan, D. I.; Rockley, M. G.; Komanduri, R. Ab Initio Potential-Energy Surfaces for Complex, Multichannel Systems Using Modified Novelty Sampling and Feedforward Neural Networks. J. Chem. Phys. 2005, 122, 084104.
+(48) Rocha, T. M.; Oliveira, Z. T.; Malbouisson, L. A. C.; Gargano, R.; Neto, J. J. S. The Use of Neural Networks for Fitting Potential Energy Surfaces: A Comparative Case Study for the H-3(+) Molecule. Int. J. Quantum Chem. 2003, 95, 281-288.
+(49) Agrawal, P. M.; Raff, L. M.; Hagan, M. T.; Komanduri, R. Molecular Dynamics Investigations of the Dissociation of \(\mathrm{SiO}_{2}\) on an Ab Initio Potential Energy Surface Obtained Using Neural Network Methods. J. Chem. Phys. 2006, 124, 134306.
+(50) Manzhos, S.; Carrington, T., Jr. Using Neural Networks to Represent Potential Surfaces as Sums of Products. J. Chem. Phys. 2006, 125, 194105.
+(51) Manzhos, S.; Carrington, T., Jr. Using Neural Networks, Optimized Coordinates, and High-Dimensional Model Representations to Obtain a Vinyl Bromide Potential Surface. J. Chem. Phys. 2008, 129, 224104.
+(52) Blank, T. B.; Brown, S. D.; Calhoun, A. W.; Doren, D. J. NeuralNetwork Models of Potential-Energy Surfaces. J. Chem. Phys. 1995, 103, 4129-4137.
+(53) Lorenz, S.; Groß, A.; Scheffler, M. Representing HighDimensional Potential-Energy Surfaces for Reactions at Surfaces by Neural Networks. Chem. Phys. Lett. 2004, 395, 210-215.
+(54) Behler, J.; Lorenz, S.; Reuter, K. Representing MoleculeSurface Interactions with Symmetry-Adapted Neural Networks. J. Chem. Phys. 2007, 127, 014705.
+(55) Behler, J.; Delley, B.; Lorenz, S.; Reuter, K.; Scheffler, M. Dissociation of \(\mathrm{O}_{2}\) at \(\mathrm{Al}(111)\) : The Role of Spin Selection Rules. Phys. Rev. Lett. 2005, 94, 036104.
+(56) Ludwig, J.; Vlachos, D. G. Ab Initio Molecular Dynamics of Hydrogen Dissociation on Metal Surfaces Using Neural Networks and Novelty Sampling. J. Chem. Phys. 2007, 127, 154716.
+(57) Manzhos, S.; Yamashita, K. A Model for the Dissociative Adsorption of \(\mathrm{N}_{2} \mathrm{O}\) on \(\mathrm{Cu}(100)\) Using a Continuous Potential Energy Surface. Surf. Sci. 2010, 604, 555-561.
+(58) Behler, J.; Parrinello, M. Generalized Neural-Network Representation of High-Dimensional Potential-Energy Surfaces. Phys. Rev. Lett. 2007, 98, 146401.
+(59) Behler, J. Atom-Centered Symmetry Functions for Constructing High-Dimensional Neural Network Potentials. J. Chem. Phys. 2011, 134, 074106.
+(60) Artrith, N.; Morawietz, T.; Behler, J. High-Dimensional NeuralNetwork Potentials for Multicomponent Systems: Applications to Zinc Oxide. Phys. Rev. B 2011, 83, 153101.
+(61) Hirshfeld, F. L. Bonded-Atom Fragments for Describing Molecular Charge-Densities. Theor. Chim. Acta 1977, 44, 129-138.
+(62) Ewald, P. Die Berechnung Optischer und Elektrostatischer Gitterpotentiale. Ann. Phys. 1921, 64, 253.
+(63) Behler, J.; Martoňák, R.; Donadio, D.; Parrinello, M. Metadynamics Simulations of the High-Pressure Phases of Silicon Employing a High-Dimensional Neural Network Potential. Phys. Rev. Lett. 2008, 100, 185501.
+(64) Behler, J.; Martoňák, R.; Donadio, D.; Parrinello, M. PressureInduced Phase Transitions in Silicon Studied by Neural NetworkBased Metadynamics Simulations. Phys. Status Solidi B 2008, 245, 2618-2629.
+(65) Artrith, N.; Behler, J. High-Dimensional Neural Network Potentials for Metal Surfaces: A Prototype Study for Copper. Phys. Rev. B 2012, 85, 045439.
+(66) Jose, K. V. J.; Artrith, N.; Behler, J. Construction of HighDimensional Neural Network Potentials Using Environment-Dependent Atom Pairs. J. Chem. Phys. 2012, 136, 194111.
+(67) Artrith, N.; Hiller, B.; Behler, J. Neural Network Potentials for Metals and Oxides - First Applications to Copper Clusters at Zinc Oxide. Phys. Status Solidi B 2012, DOI: 10.1002/pssb. 201248370.
+(68) Khaliullin, R. Z.; Eshet, H.; Kühne, T. D.; Behler, J.; Parrinello, M. Graphite-Diamond Phase Coexistence Study Employing a NeuralNetwork Mapping of the Ab Initio Potential Energy Surface. Phys. Rev. B 2010, 81, 100103.
+(69) Eshet, H.; Khaliullin, R. Z.; Kühne, T. D.; Behler, J.; Parrinello, M. Ab Initio Quality Neural-Network Potential for Sodium. Phys. Rev. B 2010, 81, 184107.
+(70) Sosso, G.; Miceli, G.; Caravati, S.; Behler, J.; Bernasconi, M. Neural Network Interatomic Potential for the Phase Change Material GeTe. Phys. Rev. B 2012, 85, 174103.
+(71) Grimme, S. Accurate Description of van der Waals Complexes by Density Functional Theory Including Empirical Corrections. J. Comput. Chem. 2004, 25, 1463-1473.
+(72) Grimme, S. Semiempirical GGA-Type Density Functional Constructed with a Long-Range Dispersion Correction. J. Comput. Chem. 2006, 27, 1787-1799.
+(73) Blum, V.; Gehrke, R.; Hanke, F.; Havu, P.; Havu, V.; Ren, X.; Reuter, K.; Scheffler, M. Ab Initio Molecular Simulations with Numeric Atom-Centered Orbitals. Comput. Phys. Commun. 2009, 180, 2175-2196.
+(74) Sugita, Y.; Okamoto, Y. Replica-Exchange Molecular Dynamics Method for Protein Folding. Chem. Phys. Lett. 1999, 314, 141-151.
+(75) Penev, E. S.; Lampoudi, S.; Shea, J. E. TiREX: Replica-Exchange Molecular Dynamics Using TINKER. Comput. Phys. Commun. 2009, 180, 2013-2019.
+(76) Ponder, J. W. TINKER-Software Tools for Molecular Design, version 5.0; Washington University School of Medicine: Saint Louis, MO, 2009 (http://dasher.wustl.edu/tinker).
+(77) Bussi, G.; Donadio, D.; Parrinello, M. Canonical Sampling Through Velocity Rescaling. J. Chem. Phys. 2007, 126, 014101.
+(78) Behler, J. RuNNer - A Neural Network Code for High-Dimensional Potential-Energy Surfaces; Lehrstuhl für Theoretische Chemie, RuhrUniversität Bochum: Bochum , Germany.
+(79) Witkoskie, J. B.; Doren, D. J. Neural Network Models of Potential Energy Surfaces: Prototypical Examples. J. Chem. Theory Comput. 2005, 1, 14-23.
+(80) Nguyen, D.; Widrow, B. Improving the Learning Speed of 2Layer Neural Networks by Choosing Initial Values of the Adaptive Weights. In IEEE First International Joint Conference on Neural Networks, San Diego, CA, 1990; pp 21-26.
+(81) Ischtwan, J.; Collins, M. A. Molecular-Potential Energy Surfaces By Interpolation. J. Chem. Phys. 1994, 100, 8080-8088.
+(82) Temelso, B.; Archer, K. A.; Shields, G. C. Benchmark Structures and Binding Energies of Small Water Clusters with Anharmonicity Corrections. J. Phys. Chem. A 2011, 115, 12034-12046.
+(83) Liu, D. C.; Nocedal, J. On the Limited Memory BFGS Method for Large-Scale Optimization. Math. Program. 1989, 45, 503-528.
+(84) Santra, B.; Michaelides, A.; Fuchs, M.; Tkatchenko, A.; Filippi, C.; Scheffler, M. On the Accuracy of Density-Functional Theory Exchange-Correlation Functionals for H Bonds in Small Water Clusters. II. The Water Hexamer and van der Waals Interactions. J. Chem. Phys. 2008, 129, 194111.
+(85) Silvestrelli, P. L. Improvement in Hydrogen Bond Description Using van der Waals-Corrected DFT: The Case of Small Water Clusters. Chem. Phys. Lett. 2009, 475, 285-288.
+(86) Bates, D. M.; Tschumper, G. S. CCSD(T) Complete Basis Set Limit Relative Energies for Low-Lying Water Hexamer Structures. J. Phys. Chem. A 2009, 113, 3555-3559.
+(87) Su, J. T.; Xu, X.; Goddard, W. A. Accurate Energies and Structures for Large Water Clusters Using the X3LYP Hybrid Density Functional. J. Phys. Chem. A 2004, 108, 10518-10526.
+(88) Malshe, M.; Narulkar, R.; Raff, L. M.; Hagan, M.; Bukkapatnam, S.; Agrawal, P. M.; Komanduri, R. Development of Generalized Potential-Energy Surfaces Using Many-Body Expansions, Neural Networks, and Moiety Energy Approximations. J. Chem. Phys. 2009, 130, 184102.

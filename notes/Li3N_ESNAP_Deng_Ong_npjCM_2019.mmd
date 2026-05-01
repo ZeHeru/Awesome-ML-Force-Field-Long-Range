@@ -1,0 +1,393 @@
+\title{
+An electrostatic spectral neighbor analysis potential for lithium nitride
+}
+
+\author{
+Zhi Deng \({ }^{1}\), Chi Chen \({ }^{1}\), Xiang-Guo \(\mathrm{Li}^{1}\) and Shyue Ping Ong (B) \({ }^{1}\)
+}
+
+\begin{abstract}
+Machine-learned interatomic potentials based on local environment descriptors represent a transformative leap over traditional potentials based on rigid functional forms in terms of prediction accuracy. However, a challenge in their application to ionic systems is the treatment of long-ranged electrostatics. Here, we present a highly accurate electrostatic Spectral Neighbor Analysis Potential (eSNAP) for ionic \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\), a prototypical lithium superionic conductor of interest as a solid electrolyte or coating for rechargeable lithium-ion batteries. We show that the optimized eSNAP model substantially outperforms traditional Coulomb-Buckingham potential in the prediction of energies and forces, as well as various properties, such as lattice constants, elastic constants, and phonon dispersion curves. We also demonstrate the application of eSNAP in long-time, large-scale Li diffusion studies in \(\mathrm{Li}_{3} \mathrm{~N}\), providing atomistic insights into measures of concerted ionic motion (e.g., the Haven ratio) and grain boundary diffusion. This work aims at providing an approach to developing quantum-accurate force fields for multi-component ionic systems under the SNAP formalism, enabling large-scale atomistic simulations for such systems.
+\end{abstract}
+npj Computational Materials (2019)5:75; https://doi.org/10.1038/s41524-019-0212-1
+
+\section*{INTRODUCTION}
+
+A potential energy surface (PES) that yields potential energy of a system of atoms with given atomic coordinates is the fundamental enabler for atomistic simulation methods. In principle, ab initio or first principles methods that solve the Schrödinger equation, typically some approximation within the Kohn-Sham density functional theory (DFT) framework, \({ }^{1,2}\) can be applied to directly calculate the PES. While such methods are highly accurate and transferable across diverse chemistries and bonding types, their high computational cost limit their application in molecular dynamics (MD) simulations to relatively small and simple systems containing up to a few hundreds of atoms and sub-nanosecond time scales. Empirical interatomic potentials, on the other hand, are a much cheaper alternative. The functional form of these potentials are drastically simplified with only a few fitting parameters to satisfy physical considerations. \({ }^{3,4}\) However, the accuracy of the empirical potentials is necessarily limited by the approximations made in selecting the functional form, which are generally not transferable to another system with different bonding types.
+
+In recent years, an alternative approach has gained popularity in constructing interatomic potentials with improved transferability. \({ }^{5-10}\) In this approach, the atomic coordinates are featurized using local environment descriptors that are invariant to translations, rotations and permutations of homo-nuclear atoms, and are differentiable and unique. \({ }^{8,11}\) A machine learning model is then trained to map the structural features to data (energies, forces, etc.) from first principles calculations. Such potentials have been demonstrated to achieve accuracy close to first principles methods at much lower computational costs. \({ }^{57,9,10}\)
+
+The coefficients of the bispectrum of local atomic density were first applied in the Gaussian approximation potential by Bartók et al. \({ }^{7}\) Thompson et al. later showed that a linear model of
+bispectrum coefficients from the lowest order-the so-called spectral neighbor analysis potential (SNAP)-can accurately reproduce DFT energies and forces as well as a variety of calculated properties (e.g., elastic constants and migration barrier for screw dislocations) in bcc Ta and W. \({ }^{9,12}\) More recently, the current authors have extended the SNAP formalism to bcc Mo, fcc Ni , and Cu , and the binary fcc Ni-bcc Mo alloy systems and showed that it outperforms traditional embedded atom method (EAM) and modified EAM potentials across a wide range of properties. \({ }^{13,14}\) Thus far, SNAP models have mainly been developed for metallic systems.
+
+For ionic systems, a common strategy in constructing interatomic potentials is to incorporate long-ranged electrostatic interactions (e.g., through the use of the Ewald summation) on top of energy model. This has been done for both traditional empirical models \({ }^{15,16}\) as well as modern local atomic environment descriptor-based potentials (e.g., GAP for the mixed ionic-covalent \(\mathrm{GaN}^{7}\) and neural network potential for \(\mathrm{ZnO}^{6}\) ). In this work, we develop a highly accurate electrostatic SNAP (eSNAP) model for ionic \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) (see Fig. 1a). \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) is one of the earliest lithium superionic conductors ever reported, \({ }^{17}\) and remains a promising solid electrolyte/anode coating candidate today due to its stability against Li metal. \({ }^{18,19} \mathrm{~A}\) highly accurate potential model for \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) would enable large-scale, long-time-scale diffusion studies of this highly important prototypical lithium conductor, as well as serve as a platform in which to develop similar potentials for more complex systems.
+
+\section*{RESULTS}
+
+Optimized model parameters
+In our proposed electrostatic SNAP (eSNAP) model, we write the total potential energy \(E_{\mathrm{p}}\) as the sum of the electrostatic
+
+\footnotetext{
+\({ }^{1}\) Department of NanoEngineering, University of California San Diego, 9500 Gilman Dr, Mail Code 0448, La Jolla, CA 92093-0448, USA
+Correspondence: Shyue Ping Ong (ongsp@eng.ucsd.edu)
+}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-2.jpg?height=613&width=812&top_left_y=197&top_left_x=182}
+\captionsetup{labelformat=empty}
+\caption{Fig. 1 a Unit cell of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) (space group: \(P 6 / m m m\) ). Green: Li ; gray: N. b Intra-planar and c inter-planar Frenkel defect configuration. The vacancy (white dashed circle X) forms at Li1 site for both cases, while the interstitial (red) forms at Li2 and Li1 site for intra-planar and inter-planar configurations, respectively}
+\end{figure}
+contributions and the local energy (SNAP) due to the variations in atomic local environments, as follows:
+\[
+E_{\mathrm{p}}=\gamma E_{\mathrm{el}}+E_{\mathrm{SNAP}}
+\]
+\[
+\mathbf{F}_{j}=-\nabla_{j} E_{\mathrm{p}}=-\gamma \nabla_{j} E_{\mathrm{el}}-F_{j, \mathrm{SNAP}}
+\]
+where \(E_{\mathrm{el}}\) and \(E_{\text {SNAP }}\) are the electrostatic energy computed using the Ewald summation approach \({ }^{20}\) and the energy from SNAP, respectively, and \(\gamma\) is an effective screening prefactor for electrostatic interactions. An iterative procedure was developed to fit all model parameters using total energies and forces from DFT calculations until the training and test errors are converged (see Methods section for details).
+
+For \(\mathrm{Li}_{3} \mathrm{~N}\), we calculated the electrostatic energy by assigning formal charges 1 and -3 to Li and N , respectively. For highly ionic \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\), we find that assigning formal charges, with screening accounted for via a fitted parameter ( \(\gamma\) in Eq. (1)), results in a simpler, more stable potential model than variable charge models such as the charge equilibration \((\mathrm{QEq})^{21}\) method. The narrow charge distribution of Li atoms from Bader analysis (see Fig. S1) also supports the usage of fixed charge. The final hyperparameters and coefficients for the optimized eSNAP model are given in Table 1. The optimized effective screening parameter \(\gamma\) is 0.057 .
+
+\section*{Energy and force prediction}
+
+Figure 2a, b shows the comparison between DFT calculated and eSNAP predicted energies and forces on both training and test dataset in the final iteration. Both energy and force predictions agree well with those from DFT calculations, indicating the eSNAP model has successfully captured the fundamental relationship between atomic environment and potential energy/atomic forces. The mean absolute errors (MAEs) on energies and forces reached convergence after only two iterations, as shown in Fig. 2c, d. In comparison, the MAEs between DFT and the Coulomb-Buckingham potential by ref. \({ }^{22}\) on the initial training configuration pool are substantially higher for both energies ( \(22 \mathrm{meV} /\) atom ) and forces ( \(0.48 \mathrm{eV} / \AA\) ).
+
+\section*{Structural properties}
+
+Table 2 compares the computed physical properties of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) with different potential energy surfaces. The lattice constants calculated from eSNAP agree with those from DFT and experiments. \({ }^{23}\) The calculated elastic constants from eSNAP also match
+
+\begin{tabular}{|l|l|l|l|l|}
+\hline \multicolumn{5}{|l|}{Table 1. Final hyperparameters and coefficients of SNAP} \\
+\hline \(k \quad 2 j_{1}\) & \(2 j_{2} \quad 2 j\) & & Li ( \(w=0.1, R=2.0\) ) & \(\mathrm{N}(w=-0.1, R=2.8)\) \\
+\hline & & & \(\beta_{\mathrm{Li}, k}\) & \(\beta_{\mathrm{N}, k}\) \\
+\hline & & & -41.973239307589510000 & 5.070489350565292000 \\
+\hline 0 & 0 & 0 & -0.006975291543708552 & 1.456429449741217000 \\
+\hline 1 & 0 & 1 & 1.943443830363772200 & -0.741751895178898800 \\
+\hline 1 & 1 & 2 & 1.943960665209158600 & 1.391487252718133000 \\
+\hline 2 & 0 & 2 & 1.896372127297504700 & -0.057993919814256490 \\
+\hline 2 & 1 & 3 & 0.818415025331073900 & 4.490489555500009000 \\
+\hline 2 & 2 & 2 & -0.115525745627534120 & 1.038809274414984000 \\
+\hline 2 & 2 & 4 & 0.024662060558673055 & 2.017342084202995000 \\
+\hline 3 & 0 & 3 & 0.645913664832655000 & 0.297752638364790700 \\
+\hline 3 & 1 & 4 & 0.029473213939390678 & 2.234672087302177000 \\
+\hline 3 & 2 & 3 & -0.835569404051590300 & 0.864212802963693300 \\
+\hline 3 & 2 & 5 & 0.260421577039490040 & 2.027941600818144300 \\
+\hline 3 & 3 & 4 & -0.531877413286821100 & 0.534495092798581400 \\
+\hline 3 & 3 & 6 & 0.297955449169754300 & 0.299436757239075040 \\
+\hline 4 & 0 & 4 & 0.100238669102941730 & -0.149453371719054230 \\
+\hline 4 & 1 & 5 & -0.569297582876690400 & 0.541280152554589700 \\
+\hline 4 & 2 & 4 & -0.683610621813019800 & 0.181446484735933700 \\
+\hline 4 & 2 & 6 & 0.076839221845524830 & 0.324534968809946260 \\
+\hline 4 & 3 & 5 & 0.157477937603063170 & -0.112365239839474810 \\
+\hline 4 & 4 & 4 & 0.245396146771298870 & 0.143146336052880570 \\
+\hline 4 & 4 & 6 & 0.218995247596486900 & 0.008000929122986318 \\
+\hline 5 & 0 & 5 & -0.203265539796318980 & -0.191267051611771400 \\
+\hline 5 & 1 & 6 & -0.232726613086012750 & -0.167152854094159280 \\
+\hline 5 & 2 & 5 & -0.352838031703020600 & -0.369717312625315600 \\
+\hline 5 & 3 & 6 & 0.112930317776087000 & -0.123035057771956320 \\
+\hline 5 & 4 & 5 & 0.537951697554698000 & 0.559745649003179100 \\
+\hline 5 & 5 & 6 & 0.082284784064962830 & 0.290496672932174600 \\
+\hline 6 & 0 & 6 & -0.178966722576012600 & -0.029092905917972420 \\
+\hline 6 & 2 & 6 & -0.283676416415676500 & -0.180134374249985380 \\
+\hline 6 & 4 & 6 & 0.089012939842931950 & 0.252331183046023500 \\
+\hline 6 & 6 & 6 & 0.044042461635336136 & 0.008318824055866198 \\
+\hline
+\end{tabular}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-2.jpg?height=636&width=831&top_left_y=1757&top_left_x=1120}
+\captionsetup{labelformat=empty}
+\caption{Fig. 2 Energy and force prediction errors for eSNAP. Comparisons between DFT and eSNAP predictions for a energies and b forces on both training and test dataset in the final iteration. Convergence of the test and training MAEs for \(\mathbf{c}\) energies and \(\mathbf{d}\) forces with iteration number}
+\end{figure}
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 2. Calculated structural properties from different potentials and lattice constants \({ }^{23}\) and elastic constants \({ }^{24}\) from experimental measurements}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline \multicolumn{2}{|c|}{} & DFT & eSNAP & Coul-Buck & Exp. \\
+\hline \multirow[t]{2}{*}{Lattice constant (Å)} & \(a\) & 3.641 & 3.641 & 3.528 & 3.648 \\
+\hline & c & 3.874 & 3.872 & 3.628 & 3.875 \\
+\hline \multirow[t]{4}{*}{Elastic constant (GPa)} & \(c_{11}\) & 123 & 116 & 165 & 114 \\
+\hline & \(c_{33}\) & 137 & 144 & 193 & 118 \\
+\hline & \(c_{44}\) & 17 & 17 & 19 & 17 \\
+\hline & \(c_{66}\) & 48 & 39 & 53 & 38 \\
+\hline \multirow{2}{*}{Defect formation energy (eV)} & Intra-planar & 0.60 & 0.64 & 0.44 & \\
+\hline & Inter-planar & 0.51 & 0.63 & 0.46 & \\
+\hline \multirow[t]{2}{*}{Defect migration barrier (eV)} & Intra-planar (vacancy) & 0.04 & 0.04 & N/A & \\
+\hline & Inter-planar (interstitial) & 0.22 & 0.09 & N/A & \\
+\hline
+\end{tabular}
+\end{table}
+reasonably well with DFT calculated and experimental values. \({ }^{24}\) This excellent agreement on structural properties can be expected from the fact that the energies of unit cells with various distortions have been fed to the model with a large sample weight. In comparison, the lattice constants and elastic constants from the Coulomb-Buckingham potential match poorly with both DFT and experimental values, despite the fact that these physical properties were used to determine the potential parameters. \({ }^{22}\)
+
+We have also calculated the formation energy of Li Frenkel defects and the migration barrier of these defects. We considered two Frenkel configurations where a vacancy is introduced on a Li 2 site and the interstitial Li is located at either Li 2 site (intraplanar, Fig. 1b) or Li1 site (inter-planar, Fig. 1c), and all defect configurations are fully relaxed within each potential. The eSNAP model yields reasonably close formation energy of intra-planar defect to the DFT value, but slightly overestimates the value of inter-planar defect by 0.12 eV . On the other hand, the Coulomb-Buckingham potential underestimates the defect formation energies, likely due to the use of unsatisfactory lattice constants in building the defect configurations. Using the nudged elastic band (NEB) method, \({ }^{25}\) we calculated the migration barrier of two types of hops, namely intra-planar (Li2 to Li2) vacancy migration and inter-planar (Li1 to Li2) Li interstitial migration. As shown in Table 2, the eSNAP barrier for intra-planar vacancy migration is in good agreement with the DFT barrier, while the eSNAP barrier for inter-planar interstitial migration underestimates the DFT barrier by 0.13 eV . We note that the eSNAP defect formation energies and migration barriers for the dominant intraplanar diffusion direction are reasonably close to the DFT values, while the overestimation of the inter-planar defect formation energy by eSNAP is compensated by the underestimation of the vacancy migration barrier. Similar errors and error compensations have been reported in prior non-electrostatic SNAP models on metals such as Mo and \(\mathrm{Ni}^{13,14}\) On the other hand, we are unable to converge the NEB barriers using the Coulomb-Buckingham potential due to its inability to model the transition states.
+
+Finally, Fig. 3 compares the calculated phonon dispersion curves of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) from eSNAP with those from DFT calculations. The phonon dispersion curves were calculated using the finite displacement approach on a \(3 \times 3 \times 3\) supercell as implemented in the phonopy package. \({ }^{26}\) We find that the phonon dispersion curves calculated from eSNAP are in good agreement with that from DFT. The only discrepancy is the imaginary phonon mode at \(\Gamma\) point observed in DFT phonon dispersion. According to Wu et al., \({ }^{27}\) this lattice instability is associated with the vibration of Li 2 sites along the c axis, resulting in a more stable phase that is
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-3.jpg?height=522&width=731&top_left_y=197&top_left_x=1111}
+\captionsetup{labelformat=empty}
+\caption{Fig. 3 Phonon dispersion curves of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) calculated from DFT and eSNAP}
+\end{figure}
+only \(0.3 \mathrm{meV} /\) atom lower in energy after displacing Li2 site by \(\sim 0.1 \AA\). This energy difference is well within the energy prediction error of the eSNAP model. We also note that the experimentally measured phonon dispersion curves at room temperature do not exhibit this lattice instability. \({ }^{24}\) In contrast, the phonon dispersion curve calculated from the Coulomb-Buckingham potential show severely overestimated frequencies (Fig. S2) due to its unsatisfactory force prediction.
+
+\section*{Bulk diffusion}
+
+MD simulations were performed using the optimized eSNAP to investigate Li diffusion in bulk \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\). Built from the unit cell with equilibrium volume, the simulation box is a \(5 \times 5 \times 5\) supercell of bulk \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) containing 500 atoms. MD simulations were carried out at elevated temperatures from 600 to 1200 K in an NVT ensemble for 1 ns long.
+
+We first validated the eSNAP by comparing the mean square displacement (MSD) and diffusivities obtained from eSNAP MD simulations with those obtained from ab initio molecular dynamics (AIMD) simulations at high temperatures ( 1000 and 1200 K ). Runs at lower temperatures were not chosen due to the poor convergence of diffusivity at limited simulation length ( 40 ps ). It should be noted that even though 1200 K is above the melting point of \(\mathrm{Li}_{3} \mathrm{~N}\), the lattice did not melt in either AIMD or eSNAP MD during the short period of simulations. As shown in Fig. S3, the generally high Li mobility and anisotropic diffusion in \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) are successfully reproduced with eSNAP MD simulations. The tracer diffusivities (given by the slope of the MSD with respect to time) from eSNAP MD ( \(1.48 \times 10^{-4} \mathrm{~cm}^{2} / \mathrm{s}\) at \(1000 \mathrm{~K}, 2.35 \times 10^{-4} \mathrm{~cm}^{2} / \mathrm{s}\) at 1200 K ) are in generally good agreement with those from AIMD \(\left(1.28 \times 10^{-4} \mathrm{~cm}^{2} / \mathrm{s}\right.\) at \(1000 \mathrm{~K}, 2.16 \times 10^{-4} \mathrm{~cm}^{2} / \mathrm{s}\) at 1200 K ), showing a slight overestimation of about \(15 \%\) and \(8 \%\) at 1000 K and 1200 K , respectively.
+
+Beyond tracer diffusivities, the orders of magnitude lower computational cost of the eSNAP relative to DFT affords us the capability to compute the charge diffusivity \(D_{\sigma}\). For each temperature, 100 independent simulations were performed starting from different initial velocities. Diffusivities were obtained by averaging square displacements over all simulations at a particular temperature. Figure 4 plots the predicted Haven ratio and Arrhenius plot for \(\mathrm{Li}_{3} \mathrm{~N}\) from eSNAP MD simulations. The activation energies, extrapolated room temperature conductivities and average Haven ratio across all temperatures are tabulated in Table 3. The anisotropic diffusion in \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) observed experimentally \({ }^{28,29}\) is reproduced in many aspects, including the magnitude of diffusivity, activation energy, and Haven ratio. The higher diffusivities and lower activation energy in the direction perpendicular to \(c\) axis is consistent with the lower Haven ratio found. The activation energy perpendicular to \(c\) axis is close to the one in single crystal measurement, though the value parallel to \(c\) axis is
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-4.jpg?height=709&width=718&top_left_y=199&top_left_x=229}
+\captionsetup{labelformat=empty}
+\caption{Fig. 4 a Haven ratio and \(\mathbf{b}\) Arrhenius plot for Li charge diffusivity in bulk \(\alpha\) - \(\mathrm{Li}_{3} \mathrm{~N}\) obtained from eSNAP MD simulations}
+\end{figure}
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 3. Bulk diffusion results from MD simulations using eSNAP and Coulomb-Buckingham potential and single crystal dc conductivity \({ }^{28}\) and \(\mathrm{NMR}^{29}\) measurements}
+\begin{tabular}{|l|l|l|l|l|}
+\hline \multicolumn{2}{|c|}{} & eSNAP & Coul-Buck & Exp. \\
+\hline \multirow[t]{3}{*}{\(E_{\mathrm{a}}(\mathrm{eV})\)} & \(\perp c\) & 0.255 & 0.422 & 0.290 \\
+\hline & \(\| c\) & 0.327 & 0.597 & 0.490 \\
+\hline & Overall & 0.269 & 0.432 & \\
+\hline \(\sigma_{\mathrm{RT}}(\mathrm{mS} / \mathrm{cm})\) & \(\perp c\) & 29.6 & 0.228 & 1.20 \\
+\hline ||c & 2.32 & 0.0004 & 0.01 & \\
+\hline Overall & 17.3 & 0.129 & & \\
+\hline Avg. \(H_{\mathrm{R}}\) & ⟂ \(c\) & 0.42 & 0.47 & 0.3 \\
+\hline ||c & 0.54 & 1.2 & 0.5 & \\
+\hline Overall & 0.44 & 0.51 & & \\
+\hline
+\end{tabular}
+\end{table}
+much lower compared with experiments. \({ }^{28}\) The lower activation energies lead to much higher extrapolated room temperature ionic conductivity for both directions. The Haven ratios obtained from eSNAP MD are reasonably close to the NMR measured values. We note that the activation energies obtained from MD simulations are lower than the sum of defect formation and migration energies. This is a result of the concerted motion of ions lowering the energy barriers, which is confirmed by the low Haven ratio. In comparison, we also performed a similar series of MD simulations with the Coulomb-Buckingham potential, \({ }^{22}\) and the results significantly underestimate the fast ionic conduction in \(\alpha\) \(\mathrm{Li}_{3} \mathrm{~N}\), and significantly overestimates the Haven ratio. In particular, the Haven ratio for the direction parallel to the \(c\)-axis is computed to be \(>1\) using the Coulomb-Buckingham potential.
+
+\section*{Grain boundary diffusion}
+
+To investigate grain boundary (GB) diffusion, we first computed the GB energies of two low \(\Sigma\) twist GB configurations- \(\Sigma 4\) [1000] and \(\Sigma 7\) [0001]. Both configurations are fully relaxed using DFT and eSNAP. The eSNAP-calculated GB energies for twist \(\Sigma 4\) [1000] and \(\Sigma 7\) [0001] GBs are 1.41 and \(0.85 \mathrm{~J} \mathrm{~m}^{-2}\), respectively, in good agreement with the DFT values of 1.64 and \(0.86 \mathrm{Jm}^{-2}\), respectively.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-4.jpg?height=574&width=808&top_left_y=197&top_left_x=1122}
+\captionsetup{labelformat=empty}
+\caption{Fig. 5 a Constructed simulation box with twist \(\Sigma 7\) [0001] GBs. b Trajectories for selected Li ions in the box with twist GBs in 0.5 ns . Li ions on the left lie in the bulk region, and the ones on the right are close to one of the GBs. c MSD (by components) vs. time plot for Li ions located at the twist GBs only (bulk Li ions are excluded). The \(z\) direction is perpendicular to the GBs. Diffusivity is computed within the 2D GB plane}
+\end{figure}
+
+The lower-energy twist \(\Sigma 7\) [0001] GB is then used in large-scale diffusion studies, as shown in Fig. 5. The simulation box (Fig. 5a) contains 5040 atoms in total. Due to the periodic boundary conditions, two GBs are separated by \(10 \times\) lattice vector \(c\) present in the box. NVT MD simulations were carried out at 300 K , with thermalization lasting for 30 ps followed by the production simulation of 1 ns . We find that the MSD of Li atoms within the GB plane is much higher than that in the bulk region, as shown in Fig. 5b, c, and there are few migration events occurring between the GB layer and the bulk layers. From the MSD, we estimate the 2D Li self-diffusivity within the twist GB to be \(7.09 \times 10^{-8} \mathrm{~cm}^{2} / \mathrm{s}\), about three times of extrapolated total value ( \(2.24 \times 10^{-8} \mathrm{~cm}^{2} / \mathrm{s}\) in 3D) in the bulk at 300 K . These results indicate that grain boundaries may provide a rapid pathway for Li diffusion in \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\).
+
+\section*{DISCUSSION}
+
+In this work, we demonstrate that modern potentials based on local environment descriptors such as the SNAP can be adapted for ionic systems by incorporating long-range electrostatics.
+
+The introduction of \(y\) as a hyperparameter offers more flexibility to the potential model in order to achieve higher predictive power. Physically, \(\gamma\) can be interpreted as the inverse of dielectric constant. Indeed, the optimized value of \(\gamma\) is 0.057 , which implies an effective dielectric constant of 17.5, reasonably close to the experimental dielectric of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) of \(14 .{ }^{30}\) We note that while the experimentally measured dielectric constant could have been provided as an input to model development, the goal of this effort is to develop a general approach to training eSNAP models for materials, some of which may not have measured dielectric constants. We have also attempted to fit a regular SNAP model for \(\mathrm{Li}_{3} \mathrm{~N}\) without the use of electrostatic interactions, but using a larger cutoff radius of \(8 \AA\) to allow the model to learn screened electrostatic interactions. The resulting SNAP model has significant higher MAEs in energies and forces of \(2.3 \mathrm{meV} /\) atom and 0.15 eV \(\AA^{-1}\), respectively.
+
+Unlike earlier works where the sample weights are treated as hyperparameters optimized toward structural properties (lattice constants, elastic constants, etc.), \({ }^{13,14}\) we used fixed sample weights in linear regression as the different scales between energies and forces are unified by using standardized \(z\)-scores as targets. Sample weight assignment then effectively becomes an exercise in assigning importance of matching various computed
+properties from DFT. Note that reproducing energetic calculations where atoms are relaxed remains a challenge, as eSNAP could not distinguish the difference of defect formation energies in different Frenkel defect configurations.
+
+It should be noted that the focus of the current eSNAP model is on reproducing the energies and forces on solid-phase \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) for the purposes of scaling MD simulations beyond the limited simulation cells and time scales in AIMD for diffusion studies. As such, the training structures were selected mainly for this purpose and no attempt was made to include a broad diversity of training structures from different polymorphs of \(\mathrm{Li}_{3} \mathrm{~N}\), liquid configurations, etc. in the training pool.
+
+Our choice of the SNAP approach is motivated by its simple linear form and its efficient implementation in the widely available open-source LAMMPS Molecular Dynamics Simulator. \({ }^{31}\) Though the MAEs of linear SNAP may not be as low as those achieved using other regression models and descriptors, \({ }^{8,32}\) its efficiency and low training data requirements are the decisive factors for our choice. In terms of scaling performance, we tested the running time of a 1000 -step MD simulation with various system sizes (500-500,000 atoms). Despite the \(O(N \log N)\) time complexity of Ewald summation, eSNAP generally shows linear scaling performance (Fig. S4), presumably governed by the time-consuming bispectrum coefficient calculations.
+
+Finally, we applied the eSNAP model to conduct long-time-scale ( \(\sim 1 \mathrm{~ns}\) ) simulations of complex models (500-5000 atoms) of \(\alpha\) \(\mathrm{Li}_{3} \mathrm{~N}\). We report the Haven ratio of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) by directly calculating charge diffusivity and show that grain boundaries may provide faster diffusion pathways (relative to bulk). The calculation of charge diffusivity, which is difficult to converge in AIMD simulations, enables us to compute much more reliable estimates of the anisotropic diffusivities of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\). Interestingly, though we find that conductivity in the c-crystallographic direction is in general slower than the \(a b\) plane, the value is only one order of magnitude lower, contrary to single crystal measurements. \({ }^{28} \mathrm{Li}\) et al. \({ }^{19}\) have recently grown pinhole-free \(\mathrm{Li}_{3} \mathrm{~N}\) nanofilms as a protective layer on Li metal anodes by flowing nitrogen gas. A critical design requirement is that the conductivity of Li in the [001] direction is sufficiently high. Li et al. \({ }^{19}\) measured conductivities of up to \(0.5 \mathrm{mS} / \mathrm{cm}\), which is in good agreement with our predictions and in disagreement with prior experiments and simulations with the Coulomb-Buckingham potential. It should be emphasized that the conductivity of \(\sim 0.01 \mathrm{mS} / \mathrm{cm}\) in the \(c\) direction reported in previous work \({ }^{28}\) would lead to a highly resistive, low-performing coating. We hope that further careful experiments in the near future may shed further light on these discrepancies in anisotropic diffusivities between different experiments and computational simulations on this highly important lithium conductor.
+
+\section*{METHODS}
+
+\section*{Electrostatic SNAP (eSNAP) model}
+
+The atomic environment around atom \(i\) at coordinates \(\mathbf{r}\) can be described by its atomic neighbor density \(\rho_{i}(\mathbf{r})\) with the following equation: \({ }^{7,9}\)
+\[
+\rho_{i}(\mathbf{r})=\delta(\mathbf{r})+\sum_{r_{i i^{\prime}}<R_{i i^{\prime}}} f_{c}\left(r_{i i^{\prime}}\right) w_{i^{\prime}} \delta\left(\mathbf{r}-\mathbf{r}_{\mathbf{i i}^{\prime}}\right),
+\]
+where \(\mathbf{r}_{\mathbf{i i}}\) is the vector joining the coordinates of central atom \(i\) and its neighbor atom \(i^{\prime}\), the cutoff function \(f_{\mathrm{c}}\) ensures that the neighbor atomic density decays smoothly to zero at cutoff radius \(R_{i i^{\prime}}\), and the dimensionless neighbor weights \(w_{i^{\prime}}\) distinguish atoms of different types. This density function can be expanded as a generalized Fourier series in the 4D hyperspherical harmonics \(U_{m, m \prime}^{j}\left(\theta, \phi, \theta_{0}\right)\) as follows:
+\[
+\rho_{i}(\mathbf{r})=\sum_{j=0, \frac{1}{2}, \ldots}^{\infty} \sum_{m=-j}^{j} \sum_{m^{\prime}=-j}^{j} u_{m, m^{\prime}}^{j} u_{m, m^{\prime}}^{j}\left(\theta, \phi, \theta_{0}\right),
+\]
+where the coefficients \(u_{m, m^{\prime}}^{j}\) are given by the inner product \(\left\langle U_{m, m^{\prime}}^{j} \mid \rho\right\rangle\). The
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-5.jpg?height=441&width=709&top_left_y=197&top_left_x=1122}
+\captionsetup{labelformat=empty}
+\caption{Fig. 6 Schematic of energy contributions vs. interatomic distances in ionic systems. \(R_{i i^{\prime}}\) denotes the cutoff radius in considering contributions from local environment}
+\end{figure}
+bispectrum coefficients are then given as:
+\[
+B_{j_{1}, j_{2}, j}=\sum_{m_{1}, m_{1}^{\prime}=-j_{1}}^{j_{1}}, \sum_{m_{2}, m_{2}^{\prime}=-j_{2}}^{j_{2}} \sum_{m, m^{\prime}=-j}^{j}\left(u_{m, m^{\prime}}^{j}\right)^{*} \stackrel{j m m^{\prime}}{H j_{1} m_{1} m_{1}^{\prime}} u_{m_{1}, m_{1}^{\prime}}^{j_{1}} u_{m_{2}, m_{2}^{\prime}}^{j_{2}} m_{2} m_{2}^{\prime}
+\]
+\[
+\text { where the constants } \stackrel{j m m^{\prime}}{H j_{1} m_{1} m_{1}^{\prime}} \text { are coupling coefficients. }
+\]
+
+In the original formulation of the non-ionic SNAP model, \({ }^{9}\) the energy and forces are expressed as a linear function of the bispectrum coefficients, as follows:
+\[
+\begin{aligned}
+& E_{\mathrm{SNAP}}=\sum_{a}\left(\beta_{a, 0} N_{a}+\sum_{k=\left\{j_{1}, j_{2}, j\right\}} \beta_{a, k} \sum_{i=1}^{N_{a}} B_{k, i}\right) \\
+& \mathbf{F}_{j, \mathrm{SNAP}}=-\sum_{a} \sum_{k=\left\{j_{1}, j_{2}, j\right\}} \beta_{a, k} \sum_{i=1}^{N_{a}} \frac{\partial B_{k, i}}{\partial \mathbf{r}_{j}} .
+\end{aligned}
+\]
+where \(a\) is the chemical identity of atoms, \(N_{\alpha}\) is the total number of \(a\) atoms in the system, and \(\beta_{a, k}\) are the coefficients in the linear SNAP model for type \(\alpha\) atoms.
+
+For ionic systems, electrostatic interactions spanning in the entire range of interatomic distances are indispensable in the construction of energy model due to the long-range tail beyond the cutoff distance for local environment description (see Fig. 6). In our proposed electrostatic SNAP (eSNAP) model, we write the total potential energy as the sum of the electrostatic contributions and the local energy (SNAP) due to the variations in atomic local environments, as follows:
+\[
+E_{\mathrm{p}}=\gamma E_{\mathrm{el}}+E_{\mathrm{SNAP}}
+\]
+\[
+\mathbf{F}_{j}=-\nabla_{j} E_{\mathrm{p}}=-\gamma \nabla_{j} E_{\mathrm{el}}-F_{j, \mathrm{SNAP}}
+\]
+where \(E_{\mathrm{el}}\) is the electrostatic energy computed using the Ewald summation approach \({ }^{20}\) and \(\gamma\) is an effective screening prefactor for electrostatic interactions. The coefficients ( \(\gamma\) and \(\beta\) ) can be solved by fitting the linear model to total energies and forces from DFT calculations.
+
+In addition, nuclei repulsions emerge at extremely short interatomic distances. In this work, the Ziegler-Biersack-Littmark (ZBL) potential is used to account for short-ranged nuclei repulsions. \({ }^{33}\) To ensure that the fitting process captures the relevant relationship between the bispectrum coefficients and the DFT energies and forces, the cutoff distances of ZBL were chosen to be short enough ( \(R_{i}=1.0 \AA, R_{o}=1.5 \AA\) ) such that the ZBL potential has negligible contribution to energies or forces among the initial training configurations where extremely close interatomic distances were not sampled. More details about ZBL settings used in this work can be found in Supplementary Information.
+
+\section*{Training data generation}
+
+Figure 1a shows the hexagonal \(P 6 / m m m\) unit cell of \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\), where Li 2 sites form \(\mathrm{Li}_{2} \mathrm{~N}\) layers with N sites in the \(a b\) plane and Li 1 sites connect N sites in neighboring \(\mathrm{Li}_{2} \mathrm{~N}\) layers along the \(c\) axis. To sample a diverse set of configurations, the initial training set includes two major components:
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 4. Data distribution and applied weights on different types of data points in the initial training dataset}
+\begin{tabular}{|l|l|l|l|l|}
+\hline Type & Total configurations & Atoms in each configuration & Weight on energy & Weight on force \\
+\hline Distorted unit cells & 109 & 4 & \(10^{3}\) & 0 \\
+\hline AIMD snapshots & 1000 & 108 & 1 & \(10^{-3}\) \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-6.jpg?height=617&width=818&top_left_y=502&top_left_x=180}
+\captionsetup{labelformat=empty}
+\caption{Fig. 7 Distribution of a original atomic energies and forces and \(\mathbf{b}\) normalized \(z\)-score of atomic energies and forces}
+\end{figure}
+1. Starting from the relaxed \(\alpha-\mathrm{Li}_{3} \mathrm{~N}\) unit cell, we first generated two series of unit cells with lattice distortions. One series samples different lattice constants \(a\) and \(c\), and the other samples unit cells with different levels of strains ( \(-1 \%\) to \(1 \%\) at \(0.2 \%\) intervals) applied in six different modes as described in de Jong et al. \({ }^{34}\)
+2. Snapshots were extracted from AIMD simulations at temperatures from 400 to 1200 K at 200 K intervals under an NVT ensemble. Starting from a \(3 \times 3 \times 3\) supercell with equilibrium volume, for each temperature, 200 snapshots were taken from a 40 ps AIMD simulation.
+To ensure accurate energies and forces, static DFT calculations were performed on all configurations (including snapshots from AIMD).
+
+\section*{DFT calculations}
+
+All DFT calculations were performed using the Vienna Ab initio Simulation Package (VASP) \({ }^{35}\) within the projector augmented wave approach. \({ }^{36}\) The Perdew-Burke-Ernzerhof (PBE) generalized gradient approximation was adopted as the exchange-correlation functional. \({ }^{37}\) To ensure the convergence of energy and atomic force, a plane-wave energy cutoff of 520 eV and \(\Gamma\)-centered \(k\)-point meshes with a density of at least \(30 \AA\) were employed for all static DFT calculations. For AIMD simulations, a single \(\sqrt{k}\) point and a much lower-energy cutoff of 300 eV were used for rapid propagation of trajectories.
+
+\section*{Model training and test}
+
+Table 4 shows the weights applied on the different sets of training configurations during model training. As the initial training dataset contains many more configurations from AIMD snapshots with larger number of atoms, a much larger weight was applied on the energies of the distorted unit cells relative to those from the AIMD snapshots. A zero weight was applied on the negligibly small forces for the distorted unit cells.
+
+As shown in Fig. 7a, the energies and forces differ greatly in magnitude and distribution due to differences in the scales and units. In the original SNAP training approach, the effect of this difference in magnitude and distribution is partially accounted for by treating the data weights as hyperparameters to be optimized. \({ }^{13,14}\) In this work, we use the standardized \(z\)-scores of energies and forces (plotted in Fig. 7b) as the targets in model training to avoid incorporating the effect of the distribution in the data weights, which are therefore fixed at the values in Table 4. The "standardized" eSNAP model in the fitting process is then
+given by the following:
+\[
+\begin{aligned}
+& {\left[\begin{array}{c}
+\frac{e-\bar{e}}{\sigma_{e}} \\
+\vdots
+\end{array}\right]=\frac{1}{N \sigma_{e}}\left[\begin{array}{cccccc}
+E_{\mathrm{el}} & N_{a} & \sum_{i=1}^{N_{a}} B_{1, i} & \ldots & \sum_{i=1}^{N_{a}} B_{k, i} & \ldots \\
+\vdots & \vdots & \vdots & \ldots & \vdots & \ldots
+\end{array}\right] \boldsymbol{\beta}^{\top},} \\
+& {\left[\begin{array}{c}
+\frac{\mathbf{F}_{j}}{\sigma_{F}} \\
+\vdots
+\end{array}\right]=\frac{1}{\sigma_{F}}\left[\begin{array}{cccccc}
+-\frac{\partial E_{\mathrm{el}}}{\partial \mathbf{r}_{j}} & 0 & -\sum_{i=1}^{N_{a}} \frac{\partial B_{1, i}}{\partial \mathbf{r}_{j}} & \ldots & -\sum_{i=1}^{N_{a}} \frac{\partial B_{k, i}}{\partial \mathbf{r}_{j}} & \ldots \\
+\vdots & \vdots & \vdots & \ldots & \vdots & \ldots
+\end{array}\right] \boldsymbol{\beta}^{\top},}
+\end{aligned}
+\]
+where \(e\) is the energy per atom, \(\bar{e}\) is the mean of \(e\), and \(\sigma_{e}\) and \(\sigma_{F}\) are the standard deviations of \(e\) and \(F\), respectively. The mean of forces is omitted since it is close to zero. The coefficient vector \(\beta^{\top}\) to be solved can be written as:
+\[
+\boldsymbol{\beta}^{\top}=\left[\begin{array}{llllll}
+\gamma & \beta_{a, 0}-\bar{e} & \beta_{a, 1} & \ldots & \beta_{a, k} & \ldots
+\end{array}\right]^{\top} .
+\]
+
+For bispectrum coefficient calculations, we used the implementation available in LAMMPS. \({ }^{9}\) The two hyperparameters (cutoff distance \(R_{a}\) and atomic weight \(w_{\alpha}\) ) for each element ( Li and N in the case of \(\mathrm{Li}_{3} \mathrm{~N}\) ) were determined using a two-step grid search scheme for the atomic weights and then followed by the cutoff distances. The MAE of forces from a linear model trained on the initial training set was chosen as the metric. For the atomic weights, it should be noted that the atomic density in ionic systems is generally higher than that in metallic systems; hence the search of atomic weights was performed in the range where \(\left|w_{a}\right|<1\). Similarly, the search space for cutoff radius was limited to the range where \(R_{\alpha}<4 \AA\). The results from grid search (Fig. S5) are available in Supplementary Information, and the final hyperparameters can be found in Table 1.
+
+Figure 8 shows the flow chart of the iterative procedure used for training the eSNAP model in this work. A preliminary eSNAP model was first trained using the initial training set. Using this fitted eSNAP model, MD simulations were then carried out using a \(3 \times 3 \times 3\) supercell in equilibrium volume at temperatures ranging from 300 K to 1200 K at 100 K intervals under an NVT ensemble for 40 ps . Ten snapshots were sampled from each MD simulation to form a new set of test configurations. Static DFT calculations were performed on these test configurations. If the test MAEs for either energies or forces were significantly larger than the corresponding training MAEs, the test set was then merged into the training set to form a new extended training set. The entire eSNAP fitting, simulation and testing procedure was repeated until there is no significant over-fitting in both energies and forces. In this work, we use \(150 \%\) of training MAE as the threshold to achieve a balance between the benefit gained by adding more training instances and the associated costs of performing more DFT calculations. It should be noted that this strategy is designed to bias the eSNAP model to improve the predictions on energy and force of MD simulations, which is the target application of interest in this work.
+
+\section*{Diffusivity calculations}
+
+The tracer diffusivity of \(\mathrm{Li} D^{*}\) is calculated from the MSD of all diffusing Li ions as described by the Einstein relation:
+\[
+D^{*}=\frac{1}{2 d t} \frac{1}{N} \sum_{i=1}^{N}\left\langle\left[\Delta \mathbf{r}_{i}(t)\right]^{2}\right\rangle,
+\]
+where \(d\) is the number of dimensions in which diffusion occurs, \(N\) is the total number of diffusing Li ions, \(\Delta \mathbf{r}_{i}(t)\) is the displacement of the \(i\) th Li ion at time \(t\).
+
+The charge diffusivity of \(\mathrm{Li} D_{\sigma}\) is calculated from the square net displacement of all diffusing Li ions, as described below:
+\[
+D_{\sigma}=\frac{1}{2 d t} \frac{1}{N}\left\langle\left[\sum_{i=1}^{N} \Delta \mathbf{r}_{i}(t)\right]^{2}\right\rangle
+\]
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/08468f28-3f29-4d8a-a155-24ca4796555a-7.jpg?height=975&width=716&top_left_y=197&top_left_x=197}
+\captionsetup{labelformat=empty}
+\caption{Fig. 8 Flowchart of iterative procedure for eSNAP model training and test}
+\end{figure}
+
+The Li conductivity at temperature \(T\) (unit: K ) can be calculated from the charge diffusivity \(D_{\sigma}\) using the Nernst-Einstein equation:
+\[
+\sigma=\frac{\rho z^{2} F^{2}}{R T} D_{\sigma},
+\]
+where \(\rho\) is the molar density of \(\mathrm{Li}, z\) is the charge of \(\mathrm{Li}(+1), F\) is the Faraday constant, and \(R\) is the gas constant.
+
+In addition, the ratio between the tracer and charge diffusivities is referred to as the Haven ratio \(H_{\mathrm{R}}=D^{*} / D_{\sigma}\).
+
+All the simulations with the eSNAP were performed using LAMMPS. \({ }^{31}\) All the structure manipulations and interfacing with VASP and LAMMPS were handled by the Python Materials Genomics (pymatgen) library. \({ }^{38}\)
+
+\section*{DATA AVAILABILITY}
+
+The training configurations and their DFT computed total energy and atomic forces are available in the SNAP development repo on Github (https://github.com/ materialsvirtuallab/snap).
+
+\section*{ACKNOWLEDGEMENTS}
+
+This work was supported by the Office of Naval Research (ONR) Young Investigator Program (YIP) under Award No. N00014-16-1-2621. The authors acknowledge computational resources provided by Triton Shared Computing Cluster (TSCC) at the University of California, San Diego, the National Energy Research Scientific Computing Center (NERSC), and the Extreme Science and Engineering Discovery Environment (XSEDE) supported by the National Science Foudation under Grant No. ACI-1053575. The authors also thank Dr. Anton Van der Ven for the discussion on diffusivity calculations.
+
+\section*{AUTHOR CONTRIBUTIONS}
+Z.D. performed potential model training, performance evaluation and diffusion studies. C.C. and X.-G.L. helped with the design of training procedure and analyses in diffusion studies. S.P.O. is the primary investigator and supervised the entire project. All authors contributed to the writing and editing of the paper.
+
+\section*{ADDITIONAL INFORMATION}
+
+Supplementary information accompanies the paper on the npj Computational Materials website (https://doi.org/10.1038/s41524-019-0212-1).
+
+Competing interests: The authors declare no competing interests.
+
+Publisher's note: Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.
+
+\section*{REFERENCES}
+1. Hohenberg, P. \& Kohn, W. Inhomogeneous electron gas. Phys. Rev. 136, B864 (1964).
+2. Kohn, W. \& Sham, L. J. Self-consistent equations including exchange and correlation effects. Phys. Rev. 140, A1133-A1138 (1965).
+3. Buckingham, R. A. The classical equation of state of gaseous helium, neon and argon. Proc. R. Soc. Lond. A 168, 264-283 (1938).
+4. Daw, M. S. \& Baskes, M. I. Embedded-atom method: derivation and application to impurities, surfaces, and other defects in metals. Phys. Rev. B 29, 6443-6453 (1984).
+5. Behler, J. \& Parrinello, M. Generalized neural-network representation of highdimensional potential-energy surfaces. Phys. Rev. Lett. 98, 146401 (2007).
+6. Artrith, N., Morawietz, T. \& Behler, J. High-dimensional neural-network potentials for multicomponent systems: applications to zinc oxide. Phys. Rev. B 83, 153101 (2011).
+7. Bartók, A. P., Payne, M. C., Kondor, R. \& Csányi, G. Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons. Phys. Rev. Lett. 104, 136403 (2010).
+8. Bartók, A. P., Kondor, R. \& Csányi, G. On representing chemical environments. Phys. Rev. B - Condens. Matter Mater. Phys. 87, 1-16 (2013).
+9. Thompson, A., Swiler, L., Trott, C., Foiles, S. \& Tucker, G. Spectral neighbor analysis method for automated generation of quantum-accurate interatomic potentials. J. Comput. Phys. 285, 316-330 (2015).
+10. Shapeev, A. V. Moment tensor potentials: a class of systematically improvable interatomic potentials. Multiscale Model. Simul. 14, 1153-1173 (2016).
+11. Behler, J. Atom-centered symmetry functions for constructing high-dimensional neural network potentials. J. Chem. Phys. 134, 074106 (2011).
+12. Wood, M. A. \& Thompson, A. P. Extending the accuracy of the SNAP interatomic potential form. J. Chem. Phys. 148, 241721 (2018).
+13. Chen, C. et al. Accurate force field for molybdenum by machine learning large materials. Data. Phys. Rev. Mater. 1, 043603 (2017).
+14. Li, X. G. et al. Quantum-accurate spectral neighbor analysis potential models for Ni-Mo binary alloys and fcc metals. Phys. Rev. B 98, 1-10 (2018a).
+15. Lewis, G. V. \& Catlow, C. R. A. Potential models for ionic oxides. J. Phys. C. Solid State Phys. 18, 1149 (1985).
+16. Lee, E., Lee, K. R., Baskes, M. I. \& Lee, B. J. A modified embedded-atom method interatomic potential for ionic systems: 2NNMEAM+Qeq. Phys. Rev. B 93, 144110 (2016).
+17. Boukamp, B. A. \& Huggins, R. A. Fast ionic conductivity in lithium nitride. Mater. Res. Bull. 13, 23-32 (1978).
+18. Zhu, Y., He, X. \& Mo, Y. Strategies based on nitride materials chemistry to stabilize Li metal anode. Adv. Sci. 4, 1600517 (2017).
+19. \(\mathrm{Li}, \mathrm{Y}\). et al. Robust Pinhole-free \(\mathrm{Li}_{3} \mathrm{~N}\) solid electrolyte grown from molten lithium. ACS Cent. Sci. 4, 97-104 (2018b).
+20. Ewald, P. P. Die Berechnung optischer und elektrostatischer Gitterpotentiale. Ann. Phys. 369, 253-287 (1921).
+21. Rappe, A. K. \& Goddard, W. A. III Charge equilibration for molecular dynamics simulations. J. Phys. Chem. 95, 3358-3363 (1991).
+22. Walker, J. \& Catlow, C. Defect structure and ionic conductivity in lithium nitride. Philos. Mag. A 43, 265-272 (1981).
+23. Rabenau, A. \& Schulz, H. Re-evaluation of the lithium nitride structure. J. LessCommon Met. 50, 155-159 (1976).
+24. Kress, W., Grimm, H., Press, W. \& Lefebvre, J. Lattice vibrations in lithium nitride, \(\mathrm{Li}_{3} \mathrm{~N}\). Phys. Rev. B 22, 4620-4625 (1980).
+25. Henkelman, G., Uberuaga, B. P. \& Jónsson, H. A climbing image nudged elastic band method for finding saddle points and minimum energy paths. J. Chem. Phys. 113, 9901 (2000).
+26. Togo, A. \& Tanaka, I. First principles phonon calculations in materials science. Scr. Mater. 108, 1-5 (2015).
+27. Wu, G., Wu, S. \& Wu, P. Doping-enhanced lithium diffusion in lithium-ion batteries. Phys. Rev. Lett. 107, 118302 (2011).
+28. Alpen, U. V., Rabenau, A. \& Talat, G. H. lonic conductivity in \(\mathrm{Li}_{3} \mathrm{~N}\) single crystals. Appl. Phys. Lett. 30, 621-623 (1977).
+29. Messer, R., Birli, H. \& Differt, K. NMR study of diffusion in Li, N. J. Phys. C. Solid State Phys. 14, 2731-2746 (1981).
+30. Wahl, J. \& Holland, U. Local ionic motion in the superionic conductor \(\mathrm{Li}_{3} \mathrm{~N}\). Solid State Commun. 27, 237-241 (1978).
+31. Plimpton, S. Fast parallel algorithms for short-range molecular dynamics. J. Comput. Phys. 117, 1-19 (1995).
+32. Szlachta, W. J., Bartók, A. P. \& Csányi, G. Accuracy and transferability of Gaussian approximation potential models for tungsten. Phys. Rev. B - Condens. Matter Mater. Phys. 90, 104108 (2014).
+33. Ziegler, J., Biersack, J. \& Littmark, U. The Stopping and Range of lons in Matter 1 (Pergamon Press, New York, 1985).
+34. de Jong, M. et al. Charting the complete elastic properties of inorganic crystalline compounds. Sci. Data 2, 150009 (2015).
+35. Kresse, G. \& Furthmüller, J. Efficient iterative schemes for ab initio totalenergy calculations using a plane-wave basis set. Phys. Rev. B 54, 11169-11186 (1996).
+36. Blöchl, P. E. Projector augmented-wave method. Phys. Rev. B 50, 17953-17979 (1994).
+37. Perdew, J. P., Burke, K. \& Ernzerhof, M. Generalized gradient approximation made simple. Phys. Rev. Lett. 77, 3865-3868 (1996).
+38. Ong, S. P. et al. Python Materials Genomics (pymatgen): a robust, open-source python library for materials analysis. Comput. Mater. Sci. 68, 314-319 (2013).
+
+Open Access This article is licensed under a Creative Commons Attribution 4.0 International License, which permits use, sharing, adaptation, distribution and reproduction in any medium or format, as long as you give appropriate credit to the original author(s) and the source, provide a link to the Creative Commons license, and indicate if changes were made. The images or other third party material in this article are included in the article's Creative Commons license, unless indicated otherwise in a credit line to the material. If material is not included in the article's Creative Commons license and your intended use is not permitted by statutory regulation or exceeds the permitted use, you will need to obtain permission directly from the copyright holder. To view a copy of this license, visit http://creativecommons. org/licenses/by/4.0/.
+© The Author(s) 2019

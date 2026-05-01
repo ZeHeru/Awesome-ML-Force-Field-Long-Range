@@ -1,0 +1,359 @@
+\title{
+Multipolar Electrostatic Energy Prediction for all 20 Natural Amino Acids Using Kriging Machine Learning
+}
+
+\author{
+Timothy L. Fletcher \({ }^{\dagger, \ddagger}\) and Paul L. A. Popelier \({ }^{*, \dagger, \ddagger}\) \\ \({ }^{\dagger}\) Manchester Institute of Biotechnology (MIB), 131 Princess Street, Manchester M1 7DN, Great Britain \\ \({ }^{\ddagger}\) School of Chemistry, University of Manchester, Oxford Road, Manchester M13 9PL, Great Britain
+}
+(S) Supporting Information
+Downloaded via FUDAN UNIV on April 20, 2026 at 15:38:33 (UTC). See https://pubs.acs.org/sharingguidelines for options on how to legitimately share published articles.
+
+\begin{abstract}
+A machine learning method called kriging is applied to the set of all 20 naturally occurring amino acids. Kriging models are built that predict electrostatic multipole moments for all topological atoms in any amino acid based on molecular geometry only. These models then predict molecular electrostatic interaction energies. On the basis of 200 unseen test geometries for each amino acid, no amino acid shows a mean prediction error above \(5.3 \mathrm{~kJ} \mathrm{~mol}^{-1}\), while the lowest error observed is \(2.8 \mathrm{~kJ} \mathrm{~mol}^{-1}\). The mean error across the entire set is only \(4.2 \mathrm{~kJ} \mathrm{~mol}^{-1}\) (or \(1 \mathrm{kcal} \mathrm{mol}^{-1}\) ). Charged systems are created by protonating or deprotonating selected amino acids, and these show no significant deviation in
+![](https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-01.jpg?height=420&width=803&top_left_y=839&top_left_x=1094)
+prediction error over their neutral counterparts. Similarly, the proposed methodology can also handle amino acids with aromatic side chains, without the need for modification. Thus, we present a generic method capable of accurately capturing multipolar polarizable electrostatics in amino acids.
+\end{abstract}
+
+\section*{1. INTRODUCTION}
+
+Realistic modeling of biomolecular systems continues to push methodological boundaries in search of enhanced accuracy in evaluating energy. This is not only true for \(a b\) initio methodologies but also for force fields and perhaps even more so. The first practical testing ground of a novel biomolecular force field is that of proteins, given their enormously varied and pivotal roles in life. The design of such a novel force field typically begins by considering amino acids.
+
+Amino acids are the building blocks of life, forming proteins with highly specific shapes and reactivities that are vital aspects of drug design and catalytic biochemistry. Each amino acid has a unique side chain that confers a special function when part of a peptide chain. The many different nonbonded interactions these amino acids take part in allow the peptide chains to stabilize secondary structures and interact with other molecules. Even a single mistake (i.e., mutation) in the amino acid sequence of a protein can contribute to the onset of disease such as Alzheimer's disease, \({ }^{1}\) Type I diabetes, \({ }^{2}\) cancers, and tumors. \({ }^{3}\) Interestingly, in the same way that a change of protein structure can cause an array of diseases, it can also confer a total resistance to prion disease. \({ }^{4}\) Thus, the proper description of amino acid interactions, at the atomistic level, should be a priority for force field development.
+
+We note that with regard to amino acids and peptide chains, a lack of polarization becomes a limiting factor in the accuracy and applicability in current force fields. A series of papers by Mei et al. have shown electrostatic polarization to be vital in the
+accurate reproduction of amino acid \(\mathrm{p} K_{\mathrm{a}}\) shifts, \({ }^{5} \pi\) stacking, \({ }^{6}\) hydrogen bonding, \({ }^{7-9}\) and structure determination. \({ }^{10-12}\) As a result, \(\mathrm{p} K_{\mathrm{a}}\) shifts can be overestimated by over \(100 \%^{13}\) while binding affinities can be underestimated by 3 orders of magnitude \({ }^{14}\) and fail to reproduce experimental values for hydrogen bond strengths. Meanwhile, many common force fields, including AMBER, CHARMM, and OPLS use point charge models for electrostatic energies and lack polarization. Fortunately, many groups \({ }^{15-33}\) have worked to bring methods of polarization to force fields, and while these become increasingly sophisticated, there is work yet to be done in order to accurately model complex biological systems, including the accurate portrayal of amino acids. That they are a reasonably good starting point follows from two findings: (i) Energy minimum geometries of amino acids in the gas phase can be representative \({ }^{34}\) of those found in solution as judged by PCM calculations. (ii) Amino acids exist in neutral form in the gas phase, \({ }^{35-37}\) which is their lowest energy state. Although considering zwitterions is important for solvated amino acids, their role in protein modeling is greatly diminished because the vast majority of amino acids are connected via peptide bonds. This fact causes the amino acids considered in this paper to be capped by a peptide bond at both termini. Meanwhile, charged side chains remain an imperative consideration due to their involvement in many catalytic reactions such as in carbonic
+
+\footnotetext{
+Received: May 4, 2016
+Published: May 25, 2016
+}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-02.jpg?height=1222&width=1197&top_left_y=224&top_left_x=484}
+\captionsetup{labelformat=empty}
+\caption{Figure 1. Schematic structures of all natural amino acids, with the number of atoms \(m\) and energy minima \(n\) in parentheses ( \(m: n\) ). Arginine, histidine, and lysine can be positively charged with addition of a proton at the position indicated by a green arrow. Aspartic acid and glutamic acid can be negatively charged by removal of a proton at the position indicated by a green arrow.}
+\end{figure}
+anhydrase, \({ }^{38,39}\) glutaminylcyclase, \({ }^{40}\) and acetylcholinesterase, \({ }^{41}\) while they are central to the idea of the "catalytic triad". \({ }^{42}\)
+
+Attempts to apply force fields to amino acids in solvents have become a rich publication area with studies focusing on small drug-like molecules, \({ }^{43}\) amino acids in organic, \({ }^{16}\) ionic, \({ }^{44}\) and aqueous \({ }^{45}\) solvents including the use of amino acids as ionic liquids. \({ }^{46}\) Careful handling of such interactions is required as they can be contrary to intuition. For example, interactions between like-charged side chains often exhibit remarkably little repulsion and are even attractive in some cases. \({ }^{45}\) Indeed, it is common in many force fields that the interactions between two nearby charged groups leads to large overestimations in interaction energy. \({ }^{47}\) Due to the complexity of the electrostatics involved, it has been surmised that the interactions of amino acids in polar solvents requires a force field that incorporates distributed multipolar electrostatics with polarization. \({ }^{48,49}\) In these cases, polarization is not a matter of simple parametrization based on local environment as buried regions can be screened from polarization compared to their exposed counterparts. \({ }^{50}\) Due to the added complexity of polarization over the additive Coulomb interaction, it has been suggested that polarization, among other effects, should be tackled by many-body methods instead. \({ }^{51}\) Indeed, without reparameterization, a typical two-body additive force field will tend to overestimate many interactions involving polar or ionic groups and solvents, which has led to many force fields being developed or altered explicitly to this purpose. \({ }^{49}\) For example,
+
+GROMOS has been altered to account for charged amino acid side chains, lowering mean energy errors from 23.1 to 1.8 kJ \(\mathrm{mol}^{-1}\), and led to good agreement with experimental data on which the reparameterization was based. \({ }^{52}\) Although this is certainly a positive step for any force field, it should be noted that having to reparameterize for different side chains and even environments is not desirable, especially considering a lack of reliable liquid-phase data. Meanwhile, the force field presented in this work should require neither such reparameterization nor any alteration to accommodate charged species.
+We develop the force field FFLUX, \({ }^{53}\) which used to be referred to as the Quantum Chemical Topological Force Field (QCTFF) in an attempt to model amino acid electrostatics accurately. Quantum Chemical Topology (QCT) \({ }^{54-56}\) is an approach that uses a gradient vector field to partition a quantum mechanical function such as the electron density or its Laplacian. QCT started with the Quantum Theory of Atoms In Molecules (QTAIM), \({ }^{57,58}\) which partitions the electron density (of a molecule or an assembly of molecules). QTAIM defines so-called topological atoms, for which multipole moments are calculated. The moments are defined according to the spherical tensor formalism rather than the unwieldy Cartesian one. These atomic multipole moments \({ }^{59}\) can be linked to molecular geometries using a machine learning method. It is through this mapping that the effect of polarization on multipole moments is captured. So, the polarization is regarded as a direct response to changes in molecular geometry. Three facts should be
+emphasized about the proposed method: (i) It captures the endpoint of the polarization process and not the polarizability (unlike earlier QCT work \({ }^{60}\) ). (ii) The effect of polarization is modeled beyond that of the dipole moments only (practically up to the hexadecapole moment). (iii) Charge transfer \({ }^{61}\) is treated as "monopole polarization", completely on a par with dipolar polarization and higher rank polarization. It is worth repeating that there is no need for polarization energy to be separately modeled. \({ }^{62,63}\)
+
+Kriging, which is the machine learning method of choice after having worked with artificial neural networks, \({ }^{64-67}\) can then predict the electrostatic properties of new geometries based on its training data. In this paper, we model a series of amino acids, both charged and neutral, without any change in this underlying method. This is the first work on FFLUX that involves the kriging of charged amino acids as well an in-depth look at where difficult predictions originate. Past work from the group has shown that adding a proton to histidine results in charge depletion centered around the ring. \({ }^{68}\) However, the competency of kriging to model such charged systems has not been demonstrated until now.
+
+It is important to note that comparisons between different force fields, energy potentials, and even parameter sets are notoriously difficult. \({ }^{69}\) Since we use our own energy minima \({ }^{70}\) and corresponding distorted geometries, energy prediction errors cannot be directly compared with those from other groups. Such limitation is a consideration every force field must encounter when attempting to compare errors with other publications that have not used identical test examples. Meanwhile, many errors reported in the literature are deviations from a minimum energy (at equilibrium). Thus, their true values remain small, whereas here we report total molecular electrostatic energies, making errors more demanding. In this case, a "total" electrostatic energy is one obtained by summation over interatomic Coulomb interactions between all atoms (rather than the deviation of an unpartitioned energy from an unpartitioned reference energy). Additionally, many studies report free energies of hydration and binding energies, whereas here we report total intramolecular energies which, again, are larger, more complex, and more demanding. We also consider all \(1-4\) and higher (i.e., \(1-n, n>4\) ) interactions to be nonbonded where atoms 1 and 4 appear in the bonded chain of atoms \(1-2-3-4\). The shortest range of electrostatic interactions that we consider would commonly be handled using a torsion potential and can be particularly difficult to model given their large values and need for polarization. \({ }^{71}\) In short, an effort has been made to make the predictions as demanding as reasonably possible. While it is difficult to compare errors between any two force fields, especially those of vastly differing methods, we note that an accuracy within 1 kcal \(\mathrm{mol}^{-1}\) is commonly understood to be chemically accurate, \({ }^{72}\) and we use this threshold as a guideline.
+
+In past work, we have successfully treated total intramolecular electrostatic energies of alanine, \({ }^{73}\) histidine, \({ }^{74}\) and aromatic amino acids \({ }^{75}\) with the proposed methodology. We now present the electrostatic energy modeling of all 20 naturally occurring amino acids alongside 5 charged amino acids. Examples that prove to be difficult to model can then be used to probe for the origins of the largest prediction errors produced.
+
+\section*{2. METHOD}
+
+For convenience Figure 1 shows the schematic structures of all natural amino acids with their respective number of atoms and number of local energy minima. The latter have been obtained \({ }^{70}\) at two levels of theory, B3LYP/apc-1 and MP2-ccpVDZ, the first of which is also featured here. That work, \({ }^{70}\) published as late as 2014, represents the first time that a homogeneous level of theory was applied to all 20 natural amino acids. This consistency is important given that energy minima can migrate in the Ramachandran map or even disappear. Each minimum is used as a template from which hundreds of distorted structures are generated through the molecule's normal modes of vibration. \({ }^{76-78}\) No normal mode is distorted beyond \(15 \%\) of its original value in the minimum geometry. For example, a bond of \(1 \AA\) cannot be perturbed beyond 0.85 or \(1.15 \AA\).
+
+For each amino acid, a total of 3000 geometries was created, spread evenly across all the local energy minima, of each given amino acid in the gas phase. A single-point energy calculation is performed for each geometry using GAUSSIAN09 \({ }^{79}\) at the B3LYP \({ }^{80,81} /\) apc-1 \(^{82,83}\) level to give an electronic wave function. The apc-1 basis set is capable of describing polarization within biological systems while remaining reliable in cases where the electron density extends far from the nucleus, such as in heteroatoms, making it a good candidate for use with amino acids. While the B3LYP functional lacks dispersion, this deficiency is inconsequential for the current study, which focuses on electrostatics. The high accuracy of B3LYP, when used with small biological molecules especially those near equilibrium geometries \({ }^{84}\) and its low CPU time loads, makes it an attractive choice for generating the high data volumes required in this study. The gradient of the electron density yields an atomic partitioning in real space according to QTAIM (Quantum Theory of Atoms in Molecules). \({ }^{57,58}\) Real space is partitioned into atomic "basins" where any electron density within the basin "belongs" to that basin's atomic nucleus. The topological atom is then defined as the union of this basin and its nucleus. Figure 2 illustrates such basins in three-dimensional space for a glycine molecule, which is peptide-capped at both the N-terminus and the C-terminus. A molecular graph (consisting of atomic interaction lines connecting nuclei) is superimposed onto the topological atoms.
+
+When all electron density within a single atomic basin is summed (or technically volume integrated), that sum is the atomic electron population or net atomic charge if corrected for the nuclear charge. Meanwhile, a more accurate, anisotropic description of the electron density surrounding a nucleus (within its own basin only) can be given through nucleuscentered multipole moments. \({ }^{86}\) When multipole moments are known for all atoms, a complete description of the \(a b\) initio molecular electron density can be reduced to just a handful of values. In the current work, there are \(N \times 25\) such values where \(N\) is the number of atoms in the molecule, each described by 25 multipole moments (up to hexadecapole). To this end, the program AIMAll \({ }^{87}\) is used to integrate over the electron density of each geometry and return the multipole moments for each atom. We now have a database of molecular geometries in Cartesian (nuclear) coordinates and the electrostatic multipole moments centered on these nuclei.
+
+The order of entries in the database is randomized such that there is no order in the data with respect to which minimum a geometry was seeded from. Thus, the test and training data will
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-04.jpg?height=638&width=787&top_left_y=235&top_left_x=237}
+\captionsetup{labelformat=empty}
+\caption{Figure 2. Topological atoms in capped glycine superimposed to its molecular graph. Gold, blue, red, and white mark carbon, nitrogen, oxygen, and hydrogen atoms, respectively. Note the intramolecular hydrogen bond (as a dashed curve) between a peptidic hydrogen and a peptidic nitrogen. This picture has been produced with in-house software called IRIS, which is based on a finite element representation \({ }^{85}\) of topological atoms.}
+\end{figure}
+both contain an even number of geometries from each minimum. For all entries, the Cartesian coordinates are converted to "features" describing the molecular geometries. The term "feature" is machine learning language for input variable. The Cartesian coordinates are expressed with respect to the global (reference) frame and hence suffer from variation when the whole molecule translates or rotates. Internal coordinates do not have this problem, which is why the features are expressed using these coordinates. This route calls for the installation of "Atomic Local Frames" (ALFs). Each atom in the molecule has its own ALF, which is centered at the atom's nucleus and which uses spherical (polar) coordinates to describe the positions of other nuclei, except the nuclei that define the ALF. The first three features are not defined by spherical coordinates but as follows. The Cahn-Ingold-Prelog priority rules decide which extra two atoms form the ALF, given that the first atom determines its origin. The highest priority neighbor to the origin atom (i.e., the second atom) determines the \(x\)-axis, and its distance from the origin is the first feature. The second highest priority neighbor (i.e., the third atom) determines the ALF's \(x y\)-plane, which is spanned by the three atoms of the ALF. The \(x\)-axis and \(y\)-axis are constructed to be orthogonal, but of course, the vectors spanning the \(x\)-axis and the line through the origin and third atom are not necessarily orthogonal. In fact, the angle spanning these two vectors is the third feature, while the second feature is the distance between the origin and the third atom. Finally, a \(z\)-axis is added, orthogonal to both the \(x\) - and \(y\)-axis completing a right-handed frame. Each given geometry therefore has a unique set of three ALF coordinates (i.e., the first three features) and \(3 \mathrm{~N}-9\) spherical coordinates that together make up the expected 3N-6 features (or internal coordinates). All atomic multipole moments are rotated to their respective ALFs following the method of Su and Coppens. \({ }^{88}\)
+
+The database is filtered for "undesirable" entries where geometries with large atomic integration errors \(\mathrm{L}(\Omega)^{89}\) (over \(0.001 \mathrm{au})\) from AIMAll are filtered alongside those whose molecular charge deviates significantly (again, by over 0.001 au )
+from the correct integer value. The remaining database entries (typically \(\sim 1500\) ) are split into a "training set" and a "test set". The training set is used to provide data to the machine learning method that we use, which is called kriging \({ }^{90}\) and explained very briefly below. The obtained kriging models can then be used to predict data for the test set, and these predictions are compared to the original (ab initio) values. In order to keep training times low, training set sizes are limited to \(400+10 \times N\) examples, where \(N\) is the number of local energy minima present. This number of examples usually yields results (training models and their electrostatic energy predictions) in less than 24 h (without making use of any parallelization as became possible after this work). Increasing the training set size generally leads to an increase in model accuracy as well as an increase in training time.
+
+The machine learning method kriging \({ }^{91}\) is used to create models that can predict multipole moments using molecular geometries. We follow the method laid out by Jones et al., \({ }^{92}\) briefly outlined here, but further methodological details and the exact implementation in the in-house program FEREBUS is given in ref 93.
+
+A single kriging model describes the change in an output variable (a multipole moment) as a response to changes in multiple input variables (termed "features"). A kriging problem has dimensionality equal to the number of features \(N_{f}\), which spans the so-called "feature space". Central to kriging is the correlation matrix \(\boldsymbol{R}\), an element of which is defined through the following kernel:
+\[
+R_{i j}=\exp \left[-\sum_{h=1}^{N_{f}} \theta_{h}\left|x_{h}^{i}-x_{h}^{j}\right|_{h} p_{h}\right]
+\]
+
+The correlation matrix \(\boldsymbol{R}\) is an \(n \times n\) matrix, where \(n\) is the number of training examples used in the building of the kriging model. The matrix element \(R_{i j}\) describes the correlation between the errors of the \(i\) th and \(j\) th training points. Each training example is correlated to another by all of its features simultaneously, which follows from the summation in the righthand term. In this final term, it is clear that the molecular geometry, denoted \(x\), in training example \(i\) is compared in each feature \(h\) to the molecular geometry in the other training example, \(j\). Thus, the difference between two training examples is a function of how different all their corresponding features are. The total number of features is the number of dimensions the kriging problem has. The kriging method uses two parameters, \(p\) and \(\theta\). The parameter \(p\) is actually a vector and determines the "smoothness" of the function; each of \(p\) 's components is typically set to 2 . The vector parameter \(\theta\) is more complex: each component \(\theta_{h}\) is a measure of correlation between the \(h\) th feature and the output (a multipole moment). Features with higher correlation are technically more "important" than those with low correlation. If \(\theta\) is a small value (for example, 0.001), then the output variable (e.g., atomic charge) may not change much when feature \(x^{(i)}\) becomes feature \(x^{(j)}\). Meanwhile larger \(\theta\) values mean more dramatic changes in the function between these points. In this way, the distance can be small but still have a large effect on the output. \({ }^{92}\) If \(\left|x_{h}^{(i)}-x_{h}^{(j)}\right|\) is small, the points in question are close together and are thus highly correlated. The correlation approaches 1 for very close points and zero for very distant points.
+
+It is surprising but apt to view a training geometry's output (for example, an atomic charge) as an "error" from its mean
+value. The correlation between training points is dependent on the distance between the points in feature space and how much the function changes between them. The complexity of the problem is somewhat reduced as the correlation matrix elements sum over all dimensions while taking both relevance and distance into account, yielding just a single correlated error value that describes the function's relationship between these points.
+
+Moving on to the kriging predictor, the output variable for a particular point, \(y\left(x^{i}\right)\), can be expressed as the error it carries plus the global term ( \(\mu\) ), as in eq 2
+\[
+\hat{y}\left(\boldsymbol{x}^{*}\right)=\hat{\mu}+\sum_{i=1}^{n} a_{i} \cdot \varphi\left(\boldsymbol{x}^{*}-\boldsymbol{x}^{i}\right)
+\]
+
+Here, \(\hat{y}\) is the predicted output for test point \(x^{*}\), the expression \(\varphi\left(x^{*}-x i\right)\) refers to the \(i\) th element of a correlation matrix that gives the correlation between the test point with each training point, while \(a_{i}\) is the \(i\) th element of \(a=\boldsymbol{R}^{-1}(y-\mathbf{1} \hat{\mu})\) where \(\boldsymbol{R}\) is again the correlation matrix, and \(\mathbf{1}\) is a column vector of ones. The correlation between the example to be predicted and the trained examples is calculated much in the same way as eq 1 shows. Thus, we take into account the prediction example's correlation with all of the \(n\) training examples and "weigh" (via \(a_{i}\) ) these correlations accordingly. Indeed, if the prediction data point is very close to a pre-existing data point in the training set, then the data points are highly correlated, and we can expect that they share a similar output value. In fact, the kriging predictor passes exactly through training points and a "perfect" prediction is achieved when predicting the output for a known geometry. We note that the prediction of any given data point is entirely dependent on the training points that directly surround it in the feature space rather than those at increasing distances from the prediction point, which is known as the "screening effect". \({ }^{94}\) If we cannot find a well-correlated example in the training set, then the output will tend toward the global term, \(\hat{\mu}\). This is a very useful consequence of the kriging method when applied to chemical systems, giving sensible mean values of the multipole moments when no good prediction can be found. However, it is still advisible that one does not stray too far from trained examples during the prediction process. \({ }^{95}\) Some studies present kriging as a method for making good predictions on sparse data sets \({ }^{96}\) where the distance between training points is large and lower correlations are found across the data set. Thus, even with a lack of a wellcorrelated training set any resulting predictions can still be useful.. The known uncertainty of any given prediction can also make kriging a powerful tool compared to other machine learning methods. \({ }^{95}\)
+
+Finally, we calculate interaction energies between the predicted multipole moments to give a predicted energy, using eq 3. This equation is used both for the predicted and the original (i.e., unpredicted, \(a b\) initio) multipole moments, returning the predicted and original (electrostatic) energy, retrospectively. The (electrostatic interaction energy) between two atoms, \(A\) and \(B\), is
+\[
+E_{A B}=\sum_{l_{A}=0}^{\infty} \sum_{l_{B}=0}^{\infty} \sum_{m_{A}=-l_{A}}^{l_{A}} \sum_{m_{B}=-l_{B}}^{l_{B}} Q_{l_{A} m_{A}} T_{l_{A} m_{A} l_{B} m_{B}} Q_{l_{B} m_{B}}
+\]
+where \(Q_{l m}\) is a multipole moment of rank \(l\) and component \(m\), and \(T\) is (the purely geometric) interaction tensor. The rank and component of a multipole moment indicates its shape and
+are akin to the familiar atomic orbitals: The single rank 0 moment is analogous to the \(s\)-orbital, the three rank 1 moments to \(p\)-orbitals, the five rank 2 to \(d\)-orbitals, and so on. Each rank consists of \(2 l+1\) components ( \(m\) ) that take integer values between \(-l\) and \(+l\). The interaction tensor is a function of the mutual orientation between local axis systems on atoms \(A\) and \(B\). We introduce an "interaction rank", \(L\), indicating the nature of interaction between two multipole moments. The interaction rank between a multipole moment of rank \(l_{A}\) on atom \(A\) and another of rank \(l_{B}\) on atom \(B\) is given in eq 4
+\[
+L=l_{A}+l_{B}+1
+\]
+
+When \(L=1\), only monopole-monopole interactions are considered, while \(L=3\) can mean a dipole-dipole interaction or a monopole-quadrupole interaction. Many more individual interactions must be summed with each unit increment rank of \(L\). With higher maximum interaction ranks, we converge on a more accurate description of the true total interaction energy. Practically, \(\mathrm{L}=5\) suffices for accurate work as demonstrated before in molecular dynamics simulations with QCT multipolar electrostatics. \({ }^{97,98}\) This interaction rank corresponds to quadru-pole-quadrupole interaction and other combinations between multipole moments. Total "original" and "predicted" electrostatic energies are obtained when all atomic interactions are summed. The two energies are then compared to give a prediction error for each given geometry, as shown in eq 5
+\[
+\begin{aligned}
+& \left|E_{\text {system }}^{\text {error }}\right|=\left|E_{\text {system }}^{\text {orig }}-E_{\text {system }}^{\text {pred }}\right|=\left|\sum_{A B} E_{A B}^{\text {orig }}-\sum_{A B} E_{A B}^{\text {pred }}\right| \\
+& \quad=\left|\sum_{A B}\left(E_{A B}^{\text {orig }}-E_{A B}^{\text {pred }}\right)\right|
+\end{aligned}
+\]
+
+The interaction energies are the result of additive pairwise interactions. Each test geometry therefore has its own electrostatic energy prediction error. Note that this energy is purely electrostatic and only of all atoms provided they interact as 1,4 or higher (i.e., \(1, n\) and \(n>4\) ). Second, we note that errors in individual interaction energies can cancel out for a given pair of atoms \(A\) and \(B\) as demonstrated by the utmost right-hand side of eq 5 . Indeed, the absolute value is taken after the subtraction is carried out, which enables the equality on the far right of the equation. So, if an error prediction for one atom pair overestimates the correct original energy, then another error prediction that underestimates can compensate for this overestimation. This cancelation of errors is justified because the physics of electrostatic additivity allows it. Indeed, the force field predicts the (total) energy of the system by summing the actual individual pairwise interaction energies rather than by summing their absolute values. All energy errors, one for each test geometry, \(\left|E_{\text {system }}^{\text {error }}\right|\), are gathered and plotted in an "S-curve" (so-called because of its sigmoidal shape) such as the one in Figure 3. Such an S-curve gives a complete impression of the prediction quality over the whole test set. Below, all energies are given in \(\mathrm{kJ} \mathrm{mol}^{-1}\) unless stated otherwise.
+
+\section*{3. RESULTS AND DISCUSSION}
+
+Each amino acid has its electrostatic energies predicted over 200 test geometries. Each amino acid produces its own S-curve, consisting of 200 points. However, in order to provide a summary of the overall performance of the 20 kriging models, a single S-curve was generated containing \(200 \times 20=4000\) test geometries, as shown in Figure 3. One way to interpret an Scurve is to select an energy value, draw a vertical line, and
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-06.jpg?height=667&width=847&top_left_y=235&top_left_x=204}
+\captionsetup{labelformat=empty}
+\caption{Figure 3. Electrostatic energy prediction errors ( \(x\)-axis, \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) versus percentile ( \(y\)-axis) for the 4000 test geometries, which corresponds to 200 test geometries for each of the 20 natural amino acids.}
+\end{figure}
+observe where this line intersects the S-curve. For example, the vertical line at \(1 \mathrm{~kJ} \mathrm{~mol}^{-1}\) intersects the S -curve at \(22 \%\), which means that \(22 \%\) of the 4000 test geometries return an energy error of maximum \(1 \mathrm{~kJ} \mathrm{~mol}^{-1}\). The mean error is \(4.2 \mathrm{~kJ} \mathrm{~mol}^{-1}\) (which cannot be read off the S-curve), and the worst prediction error for any amino acid lies at \(22 \mathrm{~kJ} \mathrm{~mol}^{-1}\), which is where the S-curve hits the ceiling of \(100 \%\). It should be noted that the top tail (right-hand side) of an S-curve is often quite flat, indicating a small number of erroneously large errors (only a few \(1 \%\) of the total number of test set geometries). In other words, a representative S-curve heads for the ceiling quite steeply but then, typically beyond \(95 \%\), suddenly bends to the right and creeps up slowly. Further readings of the S-curve show that \(90 \%\) of examples have an error below \(10 \mathrm{~kJ} \mathrm{~mol}^{-1}\) and \(60 \%\) below \(1 \mathrm{kcal} \mathrm{mol}^{-1}\). It should also be noted that the total electrostatic energy for an amino acid tends to be in the range of \(600 \mathrm{~kJ} \mathrm{~mol}^{-1}\) with individual interactions having up to a maximum of \(1000 \mathrm{~kJ} \mathrm{~mol}^{-1}\).
+
+Given the large range of energies that the kriging models have to cope with, the force field's accuracy is pleasing. The set of distorted geometries for 20 amino acids around their gas phase energy minima take on structures that are common in proteins. Figure 4 shows a Ramachandran plot, which covers large regions of \((\theta, \varphi)\) space. The upper-left quadrant \((\beta\)-sheet) and the lower-left quadrant ( \(3_{10} \alpha\)-helix) are heavily populated as might be expected for peptides in proteins based on PDB sampling. The distribution of distorted geometries, obtained from gas phase energy minima, is not guaranteed to cover the distribution of amino acid geometries of experimentally determined of proteins. However, the overlap between these distributions is considerable. We also note that areas such as the lower-right quadrant, which is not well-populated in experimental protein Ramachandran plots, are well populated with minima gained through normal mode distortion of gas phase minima.
+
+Ramachandran plots for individual amino acids can be viewed in the Supporting Information (Figure S1), and it is clear that some amino acids have more rigid dihedrals than others. Generally, it is expected that prediction difficulty increases with the number of energy minima present but
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-06.jpg?height=700&width=754&top_left_y=235&top_left_x=1167}
+\captionsetup{labelformat=empty}
+\caption{Figure 4. Ramachandran plot for all training and test examples generated for the 20 amino acids.}
+\end{figure}
+decreases with the size of each "island" in the Ramachandran plot. That is, amino acids with few minima are expected to give lower prediction errors as the training space is smaller and better sampled. However, it turns out that the number of energy minima has no significant effect on the prediction accuracy of a given amino acid. This makes some sense as amino acids with more minima have been compensated by slightly larger training set sizes. Equally, the size of the amino acid seems to have no noticeable effect on prediction accuracy. It is pleasing that there are no problematic amino acids, the complete set having a mean error as low as \(4.2 \mathrm{~kJ} \mathrm{~mol}^{-1}\) with a standard deviation of \(0.8 \mathrm{~kJ} \mathrm{~mol}^{-1}\). The lack of a clear trend between amino acid size (differing only due to amino acid side chains) and its prediction error indicates that poorly predicted multipole moments are located on the amino acid backbone rather than on the side chain. Table 1 gives a summary of the prediction errors for each amino acid alongside their number of atoms and minima for reference.
+
+Individual S-curves for each amino acid reveal that many amino acids have poor outlier predictions that extend far beyond the typical range of prediction errors, and these Scurves can be found in the Supporting Information (Figure S2). In the example of glutamic acid, a small number of poor outlier predictions are present but the mean prediction error is still small ( \(2.8 \mathrm{~kJ} \mathrm{~mol}^{-1}\) ). Alanine has a greater problem with outlying errors and also a much larger mean error ( 5.3 kJ \(\mathrm{mol}^{-1}\) ) than might be expected of a molecule of its size. It is of great interest to find where these occur and ensure lower maximum errors, which is why alanine is used as a case study to provide further context to these outlying errors. The alanine training set contains 510 examples, which can be considered minimal by current standards. Having a modest training set size allows the entire process to be completed, including all \(a b\) initio calculations and the more expensive calculation of atomic properties, in under 24 h (real time) using high-throughput facilities (time estimated using 350 cores). Alanine's mean error of \(5.3 \mathrm{~kJ} \mathrm{~mol}^{-1}\) can be lowered dramatically by increasing the training set size. Figure 5 shows how using 1200 training examples lowers the error to \(2.0 \mathrm{~kJ} \mathrm{~mol}^{-1}\).
+
+It is commonly accepted that increasing the number of training examples for any given kriging model results in greater
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 1. Each Amino Acid with Number of Atoms, Energy Minima, Mean Prediction Error, and Max Prediction Error \({ }^{a}\)}
+\begin{tabular}{|l|l|l|l|l|}
+\hline amino acid & atoms & minima & mean error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & max error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) \\
+\hline alanine & 22 & 11 & 5.3 & 17.1 \\
+\hline arginine & 35 & 60 & 5.3 & 18.1 \\
+\hline asparagine & 26 & 12 & 4.3 & 14.1 \\
+\hline aspartic acid & 25 & 36 & 3.7 & 18.5 \\
+\hline cysteine & 23 & 24 & 5.3 & 18.0 \\
+\hline glutamic acid & 28 & 33 & 3.2 & 19.1 \\
+\hline glutamine & 29 & 21 & 3.3 & 12.8 \\
+\hline glycine & 19 & 9 & 4.8 & 10.6 \\
+\hline histidine & 29 & 24 & 2.9 & 14.5 \\
+\hline isoleucine & 31 & 25 & 3.3 & 11.5 \\
+\hline leucine & 31 & 28 & 4.6 & 17.7 \\
+\hline lysine & 33 & 39 & 3.4 & 13.3 \\
+\hline methionine & 29 & 57 & 4.1 & 20.5 \\
+\hline phenylalanine & 32 & 30 & 5.1 & 13.9 \\
+\hline proline & 26 & 5 & 4.1 & 11.5 \\
+\hline serine & 23 & 26 & 4.4 & 19.7 \\
+\hline threonine & 26 & 17 & 4.6 & 17.3 \\
+\hline tryptophan & 36 & 26 & 4.2 & 17.9 \\
+\hline tyrosine & 33 & 17 & 2.8 & 20.3 \\
+\hline valine & 28 & 15 & 5.0 & 16.1 \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) Mean and max errors have a standard deviation of 0.83 and 3.11 kJ \(\mathrm{mol}^{-1}\), respectively.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-07.jpg?height=609&width=847&top_left_y=1283&top_left_x=204}
+\captionsetup{labelformat=empty}
+\caption{Figure 5. S-curves for the electrostatic energy prediction error for alanine at two different training set sizes: 510 (red) and 1200 (green) data points. Additionally, predictions ignoring the "torsional" 1-4 interactions (marked as " \(1-5\) ") are given by the blue line (again using a training set size of 510 examples).}
+\end{figure}
+predictive competency. Alternatively, considering only \(1-5\) and higher interactions (i.e., those separated by four or more bonds) gives a mean error of \(2.8 \mathrm{~kJ} \mathrm{~mol}^{-1}\) and is a reasonable concession as the \(1-4\) interactions would often be accounted for by a dihedral term in a common force field rather than by nonbonded (electrostatic) terms. It is also important to note that the total electrostatic energies of the test geometries ranged over \(304 \mathrm{~kJ} \mathrm{~mol}^{-1}\), meaning an error of \(5.3 \mathrm{~kJ} \mathrm{~mol}^{-1}\) gives a prediction accuracy of \(98 \%\). Meanwhile, a mean error of \(2.0 \mathrm{~kJ} \mathrm{~mol}^{-1}\) is over \(99 \%\) accurate. The cost of raising the training set size to 1200 means that an additional 32 h (in real time) is required for training. This additional accuracy gained is arguably well worth the extra expense, and training times are set to dramatically reduce in future publications as the in-house code FEREBUS became parallelized (to be published). When considering the errors as a percentage of the range of electrostatic energies, all amino acids in this study are found to be predicted with an accuracy of over \(98 \%\) with a mean accuracy of \(98.3 \%\), which is not significantly affected by intramolecular hydrogen bonds, charged side chains, or aromatic groups.
+
+In order to understand why alanine has a relatively large mean error considering its small size and number of minima, the magnitude of its individual interatomic interactions and their prediction errors are investigated. Table 2 shows prediction errors as the maximum interaction rank (L) is increased across successive electrostatic energy calculations.
+
+As the interaction rank \(L\) is increased, interactions between nitrogen atoms become the poorest predicted interactions by a significant margin, which only occurs upon the introduction of quadrupole moment interactions ( \(L=3\) ). Nitrogen atoms tend to have far larger quadrupole moments than other atoms in the system. Hence, in the future, kriging models for quadrupole moments should receive more training examples in order to ensure more accurate predictions. Importantly, these large interaction energies are common to all amino acids. Second, large absolute energy values are invariably found inside the moiety \(\mathrm{C}_{\text {amide }}-\mathrm{N}_{\text {amide }}-\mathrm{C}_{\alpha}-\mathrm{C}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) for interactions not involving \(\mathrm{C}_{\alpha}\). This point should be considered when it is claimed that a force field can accurately model amino acids, which commonly refers to modeling the side chains, which are arguably the least problematic fragment. Equally, dismissing 14 interactions as torsional potentials can be used to avoid these large interaction energies, for better or for worse. Indeed, when considering only interactions including the side chain atoms, alanine's mean prediction error falls to \(0.7 \mathrm{~kJ} \mathrm{~mol}^{-1}\), keeping in mind that this still includes the side chain's interaction and two problematic amide groups. Thankfully, even large interaction energy errors tend to cancel when summed.
+
+Before concluding that large absolute interaction energies lead to larger prediction errors, all interactions should be
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 2. Total Electrostatic Interaction Errors of Alanine as a Function of Interaction Rank \(\boldsymbol{L}^{\boldsymbol{a}}\)}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline interaction rank \((L)\) & total energy prediction error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & worst interaction & max interaction error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & worst \(\mathrm{N}-\mathrm{N}\) error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & highest rank interaction \\
+\hline 1 & 2.8 & \(\mathrm{C}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) & 5.4 & 5.4 & monopole-monopole \\
+\hline 2 & 2.8 & \(\mathrm{C}_{\text {amide }}-\mathrm{C}_{\text {amide }}\) & 5.4 & 5.4 & monopole-dipole \\
+\hline 3 & 6.2 & \(\mathrm{N}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) & 14.4 & 14.4 & dipole-dipole, quadrupole-monopole \\
+\hline 4 & 5.5 & \(\mathrm{N}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) & 11.5 & 11.5 & quadrupole-dipole, octupole-monopole \\
+\hline 5 & 5.3 & \(\mathrm{N}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) & 12.9 & 12.9 & quadrupole-quadrupole, octupole-dipole, hexadecapole-monopole \\
+\hline
+\end{tabular}
+\end{table}
+
+\footnotetext{
+\({ }^{a}\) The largest interaction energy prediction error at each maximum interaction rank is given alongside the largest \(\mathrm{N}-\mathrm{N}\) error.
+}
+considered. In Figure 6, all interatomic interaction energy errors for alanine are plotted against their original energy
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/dd0b8856-e520-45d1-96b0-faf692c70b57-08.jpg?height=545&width=851&top_left_y=346&top_left_x=204}
+\captionsetup{labelformat=empty}
+\caption{Figure 6. Original energies for every interaction in every test conformation of alanine plotted against their respective prediction errors. All energies are given in \(\mathrm{kJ} \mathrm{mol}^{-1}\).}
+\end{figure}
+values. Alanine contains 170 unique intermolecular interactions of the type \(1-4\) and higher ( \(1-n>4\) ), and over 200 geometries; this gives a total of \(34,000=170 \times 200\) predicted interactions.
+
+The interactions fit neatly into six distinct energy bins. The red ellipse (right) shows an island consisting exclusively of \(\mathrm{C}_{\text {amide }}-\mathrm{C}_{\text {amide }}\) interactions. The green ellipse (left) is not so exclusive but contains a collection of \(\mathrm{C}_{\text {amide }}-\mathrm{X}\) interactions, where X is a heteroatom. Moving to less extreme interaction energies, the purple ellipse contains \(\mathrm{C}_{\text {alpha }}-\mathrm{X}\) and \(\mathrm{H}-\mathrm{X}\) interactions. The blue ellipse contains \(\mathrm{N}_{\text {amide }}-\mathrm{N}_{\text {amide }}, \mathrm{O}_{\text {amide }}- \mathrm{O}_{\text {amide }}\), and \(\mathrm{N}_{\text {amide }}-\mathrm{O}_{\text {amide }}\) interactions, and as previously observed, these tend to have the largest interaction errors. The orange ellipse contains \(\mathrm{H}_{\text {amide }}-\mathrm{C}_{\text {amide }}\) interactions and \(\mathrm{C}_{\text {amide }}-\mathrm{C}_{\text {terminal }}\) interactions, and these tend to share very similar errors to the \(\mathrm{H}-\mathrm{H}\) interactions, which dominate the low-energy center of Figure 6 (and are not en-ellipsed). Although the original interaction energies appear in defined bins, the errors do not. It can be seen that the extremes of energies ( \(\pm 400 \mathrm{~kJ} \mathrm{mol}^{-1}\) absolute energy) tend to give larger errors, or at least more dispersed errors, with larger ranges. It is only at these large original energy values that predictions surpass a 5 kJ \(\mathrm{mol}^{-1}\) error. It is certainly not true that any single set of interactions or atoms solely carry the burden of poor predictions. However, \(41 \%\) of errors above \(1 \mathrm{~kJ} \mathrm{~mol}^{-1}\) are exclusively due to the \(\mathrm{N}_{\text {amide }}-\mathrm{N}_{\text {amide }}\) interaction. Thus, we can conclude that the outlying poor predictions for nitrogennitrogen interactions are largely due to their quadrupole moments being difficult to model. It is certainly worth mentioning that although alanine appears to be fraught with poorly predicted interactions, \(91 \%\) of all interactions are predicted with below a \(1 \mathrm{~kJ} \mathrm{~mol}^{-1}\) error and \(99.3 \%\) below 1 kcal \(\mathrm{mol}^{-1}\) error. In fact, the mean electrostatic energy prediction error for individual interatomic interactions across the entire set of alanine interactions is only \(0.006 \mathrm{~kJ} \mathrm{~mol}^{-1}\).
+
+It would appear that even in the worst-predicted amino acids, the vast majority of predictions deliver highly accurate electrostatic energies. However, so far we have only modeled neutral amino acids and perhaps modeling charged side chains is equally as important, given their prevalence in biochemical reactions. We have, in the past, shown kriging's ability to model
+aromatic side chains, \({ }^{99}\) and it has been shown here that amino acids with aromatic side chains do not stand out in their prediction errors when compared to other amino acids. In addition to this observation, we present a set of five charged amino acids as indicated by a green arrow in Figure 1. Each charged amino acid is created by adding or removing a hydrogen atom in the distorted geometries; these hydrogen positions are indicated by the green arrows in Figure 1. Each set of charged amino acids has a geometrically identical set of neutral amino acids with exception to that single mentioned hydrogen atom. Thus, is it fair to compare these two sets of geometries and their predictions in order to find any additional error introduced by the amino acids being non-neutral. Table 3
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 3. Mean Molecular Electrostatic Energy Prediction Errors for Each Amino Acid, Both Charged and Neutral \({ }^{\text {a }}\)}
+\begin{tabular}{|l|l|l|l|l|}
+\hline amino acid & charge & mean neutral error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & mean charged error ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) & mean error difference ( \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) \\
+\hline arginine & +1 & 4.2 & 4.5 & +0.3 \\
+\hline aspartic acid & -1 & 3.4 & 3.5 & +0.1 \\
+\hline glutamic acid & -1 & 3.2 & 3.3 & +0.1 \\
+\hline histidine & +1 & 2.4 & 2.7 & +0.3 \\
+\hline lysine & +1 & 2.9 & 3.0 & +0.1 \\
+\hline
+\end{tabular}
+\end{table}
+\({ }^{a}\) The error difference between the two is given where a positive energy difference indicates an increase in error when moving from a neutral to a charged system.
+shows the errors of the new data sets, both neutral and charged for the selection of five amino acids. A positive "error difference" indicates that errors are larger for charged systems than for neutral systems.
+
+Regardless of whether the molecular charge is positive or negative, the prediction error does tend to rise slightly. This is likely a result of the atoms in the charged system \({ }^{100}\) tending to include charge of larger magnitude and thus higher interaction energies. These differences in prediction error are small, and such a trend might not continue should enough molecules be tested. We reiterate that for all predicted systems, regardless of charge and side chain type, the proposed force field methodology is identical, and no special considerations need to be taken for any system. It can be said with confidence that the kriging machine learning has no difficulty in modeling charged amino acid side chains.
+
+It is clear that the accurate representation of the atoms involved in the amide bond is the most challenging aspect of amino acid electrostatic energy prediction, while atoms that are not highly charged are relatively simple to model. Additionally, nitrogen atoms tend to be particularly problematic due to quadrupole moments of relatively large magnitude, leading to high quadrupole-quadrupole interactions energies that are difficult to model. Somewhat contrary to expectation, the size or number of energy minima a model displays does not seem to hamper prediction accuracy, nor does a nonzero molecular charge.
+
+\section*{4. CONCLUSIONS}
+
+We have presented electrostatic energy predictions obtained for all 20 natural amino acids along with 5 charged amino acids. In all examples, mean prediction errors are consistent and tend to undercut the \(1 \mathrm{kcal} \mathrm{mol}^{-1}\) mark. It is pleasing that the models
+produced through kriging machine learning are universally successful, regardless of the system's size, charge, or structure. Although the FFLUX method is identical for each system, electrostatic energy prediction accuracies are above \(98 \%\) for all accounts. This method is fully automated and can deliver models for predicting geometries around a seed structure in under 24 h (real time) with reasonable accuracy. The method is also flexible enough to provide much greater prediction accuracy at the cost of increased training times.
+
+Meanwhile, the spotlight has been shone on certain interactions, particularly those between quadrupole moments in amide groups, for being difficult to predict accurately. We hope that this gives direction to future improvements for force field development. It is often assumed that the size of a molecule is the deciding factor as to whether it can be modeled or not but the cancellation of errors appears to largely nullify this concern. We now suggest that particular moieties, especially peptide bonds, are of greater consequence to energy prediction accuracy given their large magnitudes and difficulty to model-often due to the quadrupole moment on the amide nitrogen. We suggest that quadrupole moments are inherently difficult to model and amide nitrogen atoms tend to have quadrupoles of large enough magnitude for this to become a problem.
+
+We note the difficulty in comparing accuracies between force fields, especially those as novel as presented in this work. Promising investigations into upscaling and transferability are already underway, and methods for faster training of kriging models are to be implemented in future work. Solvated amino acids and hydration energies are immediately possible and should be modeled in order to better connect to existing literature.
+
+\section*{- ASSOCIATED CONTENT}
+
+\section*{(S) Supporting Information}
+
+The Supporting Information is available free of charge on the ACS Publications website at DOI: 10.1021/acs.jctc.6b00457.
+
+Figure S1: Ramachandran plots for each of the 20 natural amino acids with distorted structures in red and template energy minimum structures in blue. The \(\psi\) dihedral angle is on the \(x\)-axis, and the \(\varphi\) dihedral angle is on the \(y\)-axis. Note that all geometries are distorted through normal modes (of vibration), and so a Ramachandran plot gives a limited view based on only two degrees of freedom ( \(\theta\) and \(\psi\) ). Figure S2: Electrostatic energy prediction errors ( \(x\)-axis, \(\mathrm{kJ} \mathrm{mol}^{-1}\) ) versus percentile ( \(y\)-axis) for the test sets of each of the 20 natural amino acids supplemented with mean errors (which cannot be read off from the Scurves). (PDF)
+
+\section*{- AUTHOR INFORMATION}
+
+\section*{Corresponding Author}
+*E-mail: pla@manchester.ac.uk.
+
+\section*{Notes}
+
+The authors declare no competing financial interest.
+
+\section*{- ACKNOWLEDGMENTS}
+
+We are grateful to the EPSRC for the award of an Established Career Fellowship (EP/K005472), which funds both authors.
+
+\section*{- REFERENCES}
+(1) Bertram, L.; Tanzi, R. E. Nat. Rev. Neurosci. 2008, 9, 768.
+(2) Hu, X.; Deutsch, A. J.; Lenz, T. L.; Onengut-Gumuscu, S.; Han, B.; Chen, W.-M.; Howson, J. M. M.; Todd, J. A.; de Bakker, P. I. W.; Rich, S. S.; Raychaudhuri, S. Nat. Genet. 2015, 47, 898.
+(3) Maze, I.; Noh, K.-M.; Soshnev, A. A.; Allis, C. D. Nat. Rev. Genet. 2014, 15, 259.
+(4) Asante, E. A.; Smidak, M.; Grimshaw, A.; Houghton, R.; Tomlinson, A.; Jeelani, A.; Jakubcova, T.; Hamdan, S.; Richard-Londt, A.; Linehan, J. M.; Brandner, S.; Alpers, M.; Whitfield, J.; Mead, S.; Wadsworth, J. D. F.; Collinge, J. Nature 2015, 522, 478.
+(5) Ji, C.; Mei, Y.; Zhang, J. Z. H. Biophys. J. 2008, 95, 1080.
+(6) Martinez, C. R.; Iverson, B. L. Chem. Sci. 2012, 3, 2191.
+(7) Ji, C. G.; Zhang, J. Z. H. J. Am. Chem. Soc. 2008, 130, 17129.
+(8) Ji, C. G.; Zhang, J. Z. H. J. Phys. Chem. B 2009, 113, 13898.
+(9) Ji, C. G.; Zhang, J. Z. H. J. Phys. Chem. B 2011, 115, 12230.
+(10) Ji, C. G.; Zhang, J. Z. H. J. Phys. Chem. B 2009, 113, 16059.
+(11) Lu, Y.; Mei, Y.; Zhang, J. Z. H.; Zhang, D. J. Chem. Phys. 2010, 132, 131101.
+(12) Wei, C.; Tung, D.; Yip, Y. M.; Mei, Y.; Zhang, D. J. Chem. Phys. 2011, 134, 171101.
+(13) Simonson, T.; Carlsson, J.; Case, D. A. J. Am. Chem. Soc. 2004, 126, 4167.
+(14) Zeng, J.; Jia, X.; Zhang, J. Z. H.; Mei, Y. J. Comput. Chem. 2013, 34, 2677.
+(15) Archambault, F.; Chipot, C.; Soteras, I.; Luque, F. J.; Schulten, K.; Dehez, F. J. Chem. Theory Comput. 2009, 5, 3022.
+(16) Marenich, A. V.; Olson, R. M.; Kelly, C. P.; Cramer, C. J.; Truhlar, D. G. J. Chem. Theory Comput. 2007, 3, 2011.
+(17) Gresh, N.; Cisneros, G. A.; Darden, T. A.; Piquemal, J.-P. J. Chem. Theory Comput. 2007, 3, 1960.
+(18) Chaudret, R.; Gresh, N.; Parisel, O.; Piquemal, J. P. J. Comput. Chem. 2011, 32, 2949.
+(19) Zhu, K.; Shirts, M. R.; Friesner, R. A. J. Chem. Theory Comput. 2007, 3, 2108.
+(20) Zhang, P.; Bao, P.; Gao, J. L. J. Comput. Chem. 2011, 32, 2127.
+(21) Kunz, A. P. E.; Eichenberger, A. P.; van Gunsteren, W. F. Mol. Phys. 2011, 109, 365.
+(22) Holt, A.; Boström, J.; Karlström, G.; Lindh, R. J. Comput. Chem. 2010, 31, 1583.
+(23) Palmo, K.; Krimm, S. J. Chem. Theory Comput. 2007, 3, 2120.
+(24) Soteras, I.; Curutchet, C.; Bidon-Chanal, A.; Dehez, F.; Ángyán, J. G.; Orozco, M.; Chipot, C.; Luque, F. J. J. Chem. Theory Comput. 2007, 3, 1901.
+(25) Ringer, A. L.; MacKerell, A. D. Biophys. J. 2011, 100, 196.
+(26) Mezei, M. J. Chem. Theory Comput. 2007, 3, 2138.
+(27) Murdachaew, G.; Mundy, C. J.; Schenter, G. K.; Laino, T.; Hutter, J. J. Phys. Chem. A 2011, 115, 6046.
+(28) Nakagawa, S.; Mark, P.; Agren, H. J. Chem. Theory Comput. 2007, 3, 1947.
+(29) Ren, P. Y.; Wu, C. J.; Ponder, J. W. J. Chem. Theory Comput. 2011, 7, 3143.
+(30) Schutz, C. N.; Warshel, A. Proteins: Struct., Funct., Genet. 2001, 44, 400.
+(31) Price, S. L. Acc. Chem. Res. 2009, 42, 117.
+(32) Price, S. L.; Leslie, M.; Welch, G. W. A.; Habgood, M.; Price, L. S.; Karamertzanis, P. G.; Day, G. M. Phys. Chem. Chem. Phys. 2010, 12, 8478.
+(33) Jose, K. V. J.; Artrith, N.; Behler, J. J. Chem. Phys. 2012, 136, 194111.
+(34) Sousa, S. F.; Fernandes, P. A.; Ramos, M. J. J. Phys. Chem. A 2009, 113, 14231.
+(35) Suenram, R. D.; Lovas, F. J. J. Mol. Spectrosc. 1978, 72, 372.
+(36) Braverman, S.; Cohen, D.; Reisman, D.; Basch, H. J. Am. Chem. Soc. 1980, 102, 6556.
+(37) Locke, M. J.; McIver, R. T. J. Am. Chem. Soc. 1983, 105, 4226.
+(38) Maupin, C. M.; Voth, G. A. Biochim. Biophys. Acta, Proteins Proteomics 2010, 1804, 332.
+(39) Mikulski, R. L.; Silverman, D. N. Biochim. Biophys. Acta, Proteins Proteomics 2010, 1804, 422.
+(40) Calvaresi, M.; Garavelli, M.; Bottoni, A. Proteins: Struct., Funct., Genet. 2008, 73, 527.
+(41) Nemukhin, A.; Lushchekina, S.; Bochenkova, A.; Golubeva, A.; Varfolomeev, S. J. Mol. Model. 2008, 14, 409.
+(42) Zhang, Y.; Kua, J.; McCammon, J. A. J. Am. Chem. Soc. 2002, 124, 10572.
+(43) Poehlsgaard, J.; Harpsøe, K.; Jørgensen, F. S.; Olsen, L. J. Chem. Inf. Model. 2012, 52, 409.
+(44) Canongia Lopes, J. N.; Deschamps, J.; Padua, A. A. H. J. Phys. Chem. B 2004, 108, 2038.
+(45) Masunov, A.; Lazaridis, T. J. Am. Chem. Soc. 2003, 125, 1722.
+(46) Ohno, H.; Fukumoto, K. Acc. Chem. Res. 2007, 40, 1122.
+(47) Nielsen, P. A.; Norrby, P.-O.; Liljefors, T.; Rega, N.; Barone, V. J. Am. Chem. Soc. 2000, 122, 3151.
+(48) Liang, T.; Walsh, T. R. Phys. Chem. Chem. Phys. 2006, 8, 4410.
+(49) Cormack, A. N.; Lewis, R. J.; Goldstein, A. H. J. Phys. Chem. B 2004, 108, 20408.
+(50) Marenich, A. V.; Cramer, C. J.; Truhlar, D. G. Chem. Sci. 2013, 4, 2349.
+(51) Reilly, A. M.; Tkatchenko, A. Chem.Sci. 2015, 6, 3289.
+(52) Reif, M. M.; Hünenberger, P. H.; Oostenbrink, C. J. Chem. Theory Comput. 2012, 8, 3705.
+(53) Popelier, P. L. A. Phys. Scr. 2016, 91, 033007.
+(54) Popelier, P. L. A. On Quantum Chemical Topology. In Applications of Topological Methods in Molecular Chemistry; Challenges and Advances in Computational Chemistry and Physics Series, Vol. 22; Alikhani, E., Chauvin, R., Lepetit, C., Silvi, B., Eds.; Springer: Switzerland, 2016; Chapter 1.
+(55) Popelier, P. L. A. In The Chemical Bond: 100 Years Old and Getting Stronger; Mingos, M., Ed.; Springer: Switzerland, 2016.
+(56) Popelier, P. L. A.; Aicken, F. M. ChemPhysChem 2003, 4, 824.
+(57) Bader, R. F. W. Atoms in Molecules. A Quantum Theory.; Oxford University Press: Oxford, U.K., 1990.
+(58) Popelier, P. L. A. Atoms in Molecules. An Introduction.; Pearson Education: London, 2000.
+(59) Popelier, P. L. A.; Aicken, F. M. J. Am. Chem. Soc. 2003, 125, 1284.
+(60) Panhuis, M. I. H.; Popelier, P. L. A.; Munn, R. W.; Angyan, J. G. J. Chem. Phys. 2001, 114, 7951.
+(61) Mills, M. J. L.; Hawe, G. I.; Handley, C. M.; Popelier, P. L. A. Phys. Chem. Chem. Phys. 2013, 15, 18249.
+(62) Tafipolsky, M.; Engels, B. J. Chem. Theory Comput. 2011, 7, 1791.
+(63) Freitag, M. A.; Gordon, M. S.; Jensen, J. H.; Stevens, W. J. J. Chem. Phys. 2000, 112, 7300.
+(64) Handley, C. M.; Popelier, P. L. A. J. Phys. Chem. A 2010, 114, 3371.
+(65) Handley, C. M.; Popelier, P. L. A. J. Chem. Theory Comput. 2009, 5, 1474.
+(66) Handley, C. M.; Hawe, G. I.; Kell, D. B.; Popelier, P. L. A. Phys. Chem. Chem. Phys. 2009, 11, 6365.
+(67) Darley, M. G.; Handley, C. M.; Popelier, P. L. A. J. Chem. Theory Comput. 2008, 4, 1435.
+(68) Hughes, T. J.; Popelier, P. L. A. Comput. Theor. Chem. 2015, 1053, 298.
+(69) Shirts, M. R.; Pitera, J. W.; Swope, W. C.; Pande, V. S. J. Chem. Phys. 2003, 119, 5740.
+(70) Yuan, Y.; Mills, M. J. L.; Popelier, P. L. A.; Jensen, F. J. Phys. Chem. A 2014, 118, 7876.
+(71) Jiao, D.; Golubkov, P. A.; Darden, T. A.; Ren, P. Proc. Natl. Acad. Sci. U. S. A. 2008, 105, 6290.
+(72) Bash, P. A.; Ho, L. L.; MacKerell, A. D.; Levine, D.; Hallstrom, P. Proc. Natl. Acad. Sci. U. S. A. 1996, 93, 3698.
+(73) Mills, M. J. L.; Popelier, P. L. A. Theor. Chem. Acc. 2012, 131, 1137.
+(74) Kandathil, S. M.; Fletcher, T. L.; Yuan, Y.; Knowles, J.; Popelier, P. L. A. J. Comput. Chem. 2013, 34, 1850.
+(75) Fletcher, T. L.; Davie, S. J.; Popelier, P. L. A. J. Chem. Theory Comput. 2014, 10, 3708.
+(76) Hughes, T. J.; Cardamone, S.; Popelier, P. L. A. J. Comput. Chem. 2015, 36, 1844.
+(77) Cardamone, S.; Popelier, P. L. A. J. Comput. Chem. 2015, 36, 2361.
+(78) Ochterski, J. W. Vibrational Analysis in Gaussian, 1999. http:// www.gaussian.com/g_whitepap/vib.htm (accessed May 2016).
+(79) Frisch, M. J.; Trucks, G. W.; Schlegel, H. B.; Scuseria, G. E.; Robb, M. A.; Cheeseman, J. R.; Scalmani, G.; Barone, V.; Mennucci, B.; Petersson, G. A.; Nakatsuji, H.; Caricato, M.; Li, X.; Hratchian, H. P.; Izmaylov, A. F.; Bloino, J.; Zheng, G.; Sonnenberg, J. L.; Hada, M.; Ehara, M.; Toyota, K.; Fukuda, R.; Hasegawa, J.; Ishida, M.; Nakajima, T.; Honda, Y.; Kitao, O.; Nakai, H.; Vreven, T.; Montgomery, J. A., Jr.; Peralta, P. E.; Ogliaro, F.; Bearpark, M.; Heyd, J. J.; Brothers, E.; Kudin, K. N.; Staroverov, V. N.; Kobayashi, R.; Normand, J.; Raghavachari, K.; Rendell, A.; Burant, J. C.; Iyengar, S. S.; Tomasi, J.; Cossi, M.; Rega, N.; Millam, N. J.; Klene, M.; Knox, J. E.; Cross, J. B.; Bakken, V.; Adamo, C.; Jaramillo, J.; Gomperts, R.; Stratmann, R. E.; Yazyev, O.; Austin, A. J.; Cammi, R.; Pomelli, C.; Ochterski, J. W.; Martin, R. L.; Morokuma, K.; Zakrzewski, V. G.; Voth, G. A.; Salvador, P.; Dannenberg, J. J.; Dapprich, S.; Daniels, A. D.; Farkas, Ö.; Ortiz, J. V.; Cioslowski, J.; Fox, D. J. Gaussian 09; Gaussian, Inc.: Wallingford, CT, 2009.
+(80) Becke, A. D. J. Chem. Phys. 1993, 98, 5648.
+(81) Lee, C.; Yang, W.; Parr, R. G. Phys. Rev. B: Condens. Matter Mater. Phys. 1988, 37, 785.
+(82) Jensen, F. J. Chem. Phys. 2001, 115, 9113.
+(83) Jensen, F. J. Chem. Phys. 2002, 117, 9234.
+(84) Friesner, R. A. Proc. Natl. Acad. Sci. U. S. A. 2005, 102, 6648.
+(85) Rafat, M.; Popelier, P. L. A. J. Comput. Chem. 2007, 28, 2602.
+(86) Popelier, P. L. A. Mol. Phys. 1996, 87, 1169.
+(87) Keith, T. A. AIMALL, 11.04.03 TK Gristmill Software, 2011. aim.tkgristmill.com (accessed May 2016).
+(88) Su, Z. W.; Coppens, P. Acta Crystallogr., Sect. A: Found. Crystallogr. 1994, 50, 636.
+(89) Aicken, F. M.; Popelier, P. L. A. Can. J. Chem. 2000, 78, 415.
+(90) Matheron, G. Econ. Geol. Bull. Soc. Econ. Geol. 1963, 58, 1246.
+(91) Cressie, N. Statistics for Spatial Data; Wiley, New York, 1993.
+(92) Jones, D. R.; Schonlau, M.; Welch, W. J. J.Global Optim. 1998, 13, 455.
+(93) Di Pasquale, N.; Davie, S. J.; Popelier, P. L. A. J. Chem. Theory Comput. 2016, 12, 1499-1513.
+(94) Stein, M. L. Annals of Statistics 2002, 30, 298.
+(95) Romero, P. A.; Krause, A.; Arnold, F. H. Proc. Natl. Acad. Sci. U. S. A. 2013, 110, E193.
+(96) Laslett, G. M. J. Am. Stat. Assoc. 1994, 89, 391.
+(97) Liem, S. Y.; Popelier, P. L. A.; Leslie, M. Int. J. Quantum Chem. 2004, 99, 685.
+(98) Liem, S. Y.; Popelier, P. L. A. J. Chem. Theory Comput. 2008, 4, 353.
+(99) Fletcher, T. L.; Davie, S. J.; Popelier, P. L. A. J. Chem. Theory Comput. 2014, 10, 3708.
+(100) Hughes, T. J.; Popelier, P. L. A. Comput. Theor. Chem. 2015, 1053, 298.

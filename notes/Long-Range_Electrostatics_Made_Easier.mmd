@@ -1,0 +1,328 @@
+\section*{Long-range electrostatics for machine learning interatomic potentials is easier than we thought FREE}
+
+Special Collection: Festschrift in honor of Christoph Dellago: Exploring Paths and Barriers in Statistical Mechanics
+Dongjin Kim (D); Bingqing Cheng (B)
+Check for updates
+J. Chem. Phys. 164, 060901 (2026)
+https://doi.org/10.1063/5.0316886
+![](https://cdn.mathpix.com/cropped/770b84f6-73be-4fdc-ac5a-512aba4bf49d-01.jpg?height=108&width=99&top_left_y=735&top_left_x=1544)
+
+View Online
+
+\section*{Articles You May Be Interested In}
+
+MLIP-3: Active learning on atomic environments with moment tensor potentials
+J. Chem. Phys. (August 2023)
+
+Modeling the behavior of concentrated aqueous \(\mathrm{HNO}_{3}\) using machine learning interatomic potentials
+J. Chem. Phys. (January 2026)
+
+Li diffusion in oxygen-chlorine mixed anion borosilicate glasses using a machine-learning simulation
+J. Chem. Phys. (October 2024)
+![](https://cdn.mathpix.com/cropped/770b84f6-73be-4fdc-ac5a-512aba4bf49d-01.jpg?height=415&width=412&top_left_y=2238&top_left_x=445)
+
+\section*{AIP Advances}
+
+\section*{Why Publish With Us?}
+![](https://cdn.mathpix.com/cropped/770b84f6-73be-4fdc-ac5a-512aba4bf49d-01.jpg?height=101&width=106&top_left_y=2435&top_left_x=1187)
+
+\title{
+Long-range electrostatics for machine learning interatomic potentials is easier than we thought
+}
+
+Cite as: J. Chem. Phys. 164, 060901 (2026); doi: 10.1063/5.0316886
+Submitted: 15 December 2025 • Accepted: 16 January 2026 • Published Online: 12 February 2026
+
+\author{
+AFFILIATIONS \\ \({ }^{1}\) Department of Chemistry, UC Berkeley, Berkeley, California 94720, USA \\ \({ }^{2}\) Chemical Sciences Division, Lawrence Berkeley National Laboratory, Berkeley, California 94720, USA \\ \({ }^{3}\) Bakar Institute of Digital Materials for the Planet, UC Berkeley, Berkeley, California 94720, USA \\ \({ }^{4}\) The Institute of Science and Technology Austria, Am Campus 1, 3400 Klosterneuburg, Austria
+}
+
+Note: This paper is part of the Special Topic Festschrift in honor of Christoph Dellago: Exploring Paths and Barriers in Statistical Mechanics.
+\({ }^{\text {a) }}\) Author to whom correspondence should be addressed: bingqingcheng@berkeley.edu
+
+\begin{abstract}
+The lack of long-range electrostatics is a key limitation of modern machine learning interatomic potentials (MLIPs), hindering reliable applications to interfaces, charge-transfer reactions, polar and ionic materials, and biomolecules. In this Perspective, we distill two design principles behind the Latent Ewald Summation framework, which can capture long-range interactions, charges, and electrical response just by learning from standard energy and force training data: (i) use a Coulomb functional form with environment-dependent charges to capture electrostatic interactions, and (ii) avoid explicit training on ambiguous density functional theory partial charges. When both principles are satisfied, substantial flexibility remains: essentially any short-range MLIP can be augmented; charge equilibration schemes can be added when desired; dipoles and Born effective charges can be inferred or fine-tuned; and charge/spin-state embeddings or tensorial targets can be further incorporated. We also discuss current limitations and open challenges. Together, these minimal, physics-guided design rules suggest that incorporating long-range electrostatics into MLIPs is simpler and perhaps more broadly applicable than is commonly assumed.
+\end{abstract}
+
+Published under an exclusive license by AIP Publishing. https://doi.org/10.1063/5.0316886
+
+\section*{I. INTRODUCTION}
+
+There is no denying that accurate modeling of the \(1 / r\)-decaying long-range electrostatics is crucial in atomistic simulations, particularly for interfaces, charge-transfer processes, polar and ionic materials, and biomolecular systems. \({ }^{1-3}\) The open question has always been how "easy" it is to incorporate such long-range interactions into the machine learning interatomic potential (MLIP) framework.
+
+Most MLIPs are built on the locality assumption: \({ }^{4}\) the energy and forces associated with a central atom are largely determined by its local neighbors. \({ }^{5,6}\) The total short-range energy of a system is thus approximated as a sum of local atomic energy contributions \(E_{i}\) from each atom \(i, E^{\mathrm{sr}}=\sum_{i=1}^{N} E_{i}\). Early MLIPs \({ }^{7,8}\) define the local environment using a fixed spatial cutoff radius, typically on the order of 6 Å. Later message-passing neural networks (MPNNs) \({ }^{9-14}\) propagate information across multiple interaction shells, effectively increasing the receptive field. However, this is no guarantee that long-range
+interactions are faithfully captured, as deep MPNNs can suffer from information degradation and over-smoothing. \({ }^{15,16}\)
+
+In recent years, various strategies \({ }^{6,17-52}\) have been proposed to combine electrostatics with MLIPs. In Fig. 1, we illustrate the representative developments and the conceptual connections between them. This is by no means exhaustive and is skewed toward the earlier methods in each category, particularly those that have inspired our own work.
+
+The methods in the purple shaded region of Fig. 1 capture longrange effects by embedding global geometrical information directly into the model representation. \({ }^{37-42,44,45}\) This includes approaches based on global or reciprocal-space message passing, \({ }^{38,44}\) the use of virtual global nodes for communicating global information, \({ }^{45}\) and those constructing explicit long-range descriptors. \({ }^{39-41}\) In these frameworks, long-range interactions are not introduced as a physical electrostatic energy term, but rather as part of the learned global feature space from which the neural network can infer nonlocal interactions.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/770b84f6-73be-4fdc-ac5a-512aba4bf49d-03.jpg?height=798&width=1229&top_left_y=310&top_left_x=402}
+\captionsetup{labelformat=empty}
+\caption{FIG. 1. Map of representative strategies for learning long-range interactions. The black solid arrows indicate an extension or variant of a method. The black dashed arrows represent conceptual connections. The red arrows indicate the learning of physical quantities. The blue shaded region indicates methods that use additional DFT training labels; the green shaded region denotes methods with charge equilibration; the purple shaded region marks the methods using high-dimensional long-range representations; the yellow shaded region represents the classical force fields with fixed charges; and the red shaded region indicates the methods that can learn electrical response properties. Abbreviations: LES, Latent Ewald Summation; \({ }^{21}\) HDNNP, high-dimensional neural network potential; \({ }^{23,31}\) BAMBOO, ByteDance AI molecular simulation booster; \({ }^{25}\) AIMNET, atoms-in-molecules neural network potential; \({ }^{32}\) Ewald MP, Ewald message passing; LODE, long-distance equivariant; \({ }^{39}\) RANGE, relaying attention nodes for global encoding; \({ }^{45}\) DPLR, deep potential long-range; \({ }^{35}\) SCFNN, self-consistent field neural network; \({ }^{36}\) Qeq, charge equilibration scheme proposed in Refs. 47 and 53; BEC, Born effective charge tensors; Equivariant features, direct prediction of the tensorial quantities; \({ }^{62,66,67}\) and differentiable learning, learn corresponding response properties by taking derivatives. \({ }^{54,55} \cup\) is electric enthalpy; \(U^{0}\) is the energy in the absence of the electric field; \(P\) is polarization; and \(\mathcal{E}\) is a uniform electric field. \({ }^{54}\)}
+\end{figure}
+
+The methods inside the blue shaded region of Fig. 1 encode physically motivated quantities, such as atomic charges, \({ }^{22-25,27-29,31-34,48,49}\) typically trained on electronic information from density functional theory (DFT). Notably, 3G-HDNNP \({ }^{23,31}\) learns DFT partial charges, \({ }^{31}\) and this was later refined in 4G-HDNNP \({ }^{23}\) that further include the charge equilibration (Qeq) scheme. \({ }^{47,53}\) PhysNet, \({ }^{22}\) BAMBOO, \({ }^{25}\) and AIMNET2 \({ }^{32}\) include DFT dipoles in the loss function and predict atomic partial charges. The deep potential long-range (DPLR) model \({ }^{35}\) and the self-consistent field neural network (SCFNN) \({ }^{36}\) learn from the maximally localized Wannier centers (MLWCs) for insulating systems.
+
+In a separate vein, the methods highlighted in the red shaded region specifically target electrical response properties, such as polarization \((P)\), \({ }^{54-61}\) polarizability, \({ }^{54,57,58}\) electron density, \({ }^{62-64}\) and Born effective charge (BEC) tensors \(\left(Z^{*}\right) .^{54-56,59-61,65}\) These quantities may be learned directly as tensorial outputs using equivariant features \({ }^{55,56,62,63,65-68}\) or through differentiable learning frameworks in which response properties are obtained as derivatives of learned quantities, \({ }^{54,60}\) for example, BECs as derivatives of polarization with respect to atomic displacements \({ }^{54,56,60}\) and polarizations \(P\) as derivatives of energy with respect to the external electric field \(\mathcal{E}\). \({ }^{54,57,58}\) Related developments by Grisafi et al. \({ }^{62,64}\) introduced long-range
+symmetry-adapted models for predicting electron densities and the electronic density response under applied fields.
+
+Latent Ewald Summation (LES) \({ }^{21,59-61}\) is at the intersection of the three aforementioned approaches: LES explicitly employs atomic charges to construct a physical long-range Coulomb electrostatic energy term; however, these charges are not learned from DFT electronic labels. Instead, they are inferred as latent, environmentdependent features solely from training on standard energy and force data. Meanwhile, electrical response properties such as \(P\) and \(Z^{*}\) emerge naturally. \({ }^{59-61}\)
+
+The LES algorithm is simple: the local invariant features on each atom \(i\) (same as the ones for predicting local energies \(E_{i}\) ) predict the latent atomic charge \(q^{\text {les }}\) via a neural network. These \(q^{\text {les }}\) values are then used to compute long-range electrostatic energy \(E^{\text {lr }}\). Pairwise summation is used for finite systems,
+\[
+E^{\mathrm{lr}}=\frac{1}{2} \frac{1}{4 \pi \varepsilon_{0}} \sum_{i=1}^{N} \sum_{j=1}^{N}\left[1-\varphi\left(r_{i j}\right)\right] \frac{q_{i}^{\text {les }} q_{j}^{\text {les }}}{r_{i j}},
+\]
+where \(\varepsilon_{0}\) is the vacuum permittivity, \(\varphi(r)=\operatorname{erfc}\left(\frac{r}{\sqrt{2} \sigma}\right)\) is the complementary error function, and \(\sigma\) is a smearing factor typically \(\approx 1 \AA\). It is worth noting that for moderately large molecules, it may still be
+computationally advantageous to setup a periodic box with sufficient vacuum space. Ewald summation is used for periodic systems,
+\[
+E^{\operatorname{lr}}=\frac{1}{2 \varepsilon_{0} V} \sum_{0<k<k_{c}} \frac{1}{k^{2}} e^{-\sigma^{2} k^{2} / 2}|S(\mathbf{k})|^{2}
+\]
+with
+\[
+S(\mathbf{k})=\sum_{i=1}^{N} q_{i}^{\mathrm{les}} e^{i \mathbf{k} \cdot \mathbf{r}_{i}}
+\]
+where \(\mathbf{k}\) is the reciprocal wave vector and \(V\) is the cell volume. Finally, the electrostatic energy is added to the short-range energy to form the total potential energy of the system, \(E=E^{\mathrm{sr}}+E^{\mathrm{lr}}\).
+
+For a finite system, the polarization is \(P=\sum_{i=1}^{N} q_{i} \mathbf{r}_{i}\) and the BEC for an atom \(i\) is
+\[
+Z_{i \alpha \beta}^{*}=\frac{\partial P_{\alpha}}{\partial r_{i \beta}}
+\]
+with \(\alpha\) and \(\beta\) labeling Cartesian directions. For a homogeneous periodic system,
+\[
+Z_{i \alpha \beta}^{*}=\lim _{k \rightarrow 0} \Re\left[\exp \left(-i k r_{i \alpha}\right) \frac{\partial P_{\alpha}(k)}{\partial r_{i \beta}}\right],
+\]
+where \(P_{\alpha}(k)=\sum_{i=1}^{N} \sqrt{\varepsilon_{\infty}} \frac{q_{i}^{\text {les }}}{i k} \exp \left(i k r_{i \alpha}\right)\) and \(\varepsilon_{\infty}\) is high-frequency (electronic) relative permittivity.
+
+In addition to the simple algorithm, the implementation of LES into any short-range MLIP is also easy. Thus far, LES has been integrated with MACE, \({ }^{12}\) NequIP, \({ }^{11}\) Allegro, \({ }^{69}\) CACE, \({ }^{70}\) and CHGNet, \({ }^{71}\) and these implementations are discussed and benchmarked in
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/770b84f6-73be-4fdc-ac5a-512aba4bf49d-04.jpg?height=963&width=1780&top_left_y=902&top_left_x=141}
+\captionsetup{labelformat=empty}
+\caption{FIG. 2. Benchmark results of short-range and LES-augmented MLIPs for bulk RPBE-D3 water. Panel (a): The test force root mean square errors (RMSEs) for baseline MLIPs (hollow bars), and the corresponding LES-augmented models (solid bars) for different architectures (MACE, \({ }^{12}\) NequIP, \({ }^{11}\) CHGNet, \({ }^{71}\) CACE, \({ }^{70}\) and Allegro \({ }^{69}\) ). The cutoff \(r\), the number of layers \(n_{l}\), the order of irreducible representations (rotation order) \(\ell\), and body order \(v\) are indicated for each MLIP. The results are reproduced from Ref. 61. Panel (b): Parity plots comparing the diagonal components of the BEC tensor \(\left(Z_{\alpha \alpha}^{*}\right)\) of CACE LES with RPBE-D3 reference values for 100 bulk water configurations; 55 the insets show the off-diagonal components \(\left(\mathrm{Z}_{\alpha \beta}^{*}\right.\) with \(\left.\alpha \neq \beta\right)\). \(\mathrm{E}+\mathrm{F}\) denotes a CACE LES model trained on energy and forces; the results for the model trained on \(\mathrm{E}+\mathrm{F}+\mathrm{BEC}\) is reproduced from Ref. 60 and was trained on a smaller set of 100 configurations with BEC labels; and \(\mathrm{E}+\mathrm{F}+\) Qeq incorporates a charge equilibration (Qeq) scheme. \({ }^{47,53}\) The test RMSE values for forces in meVIÅ are \(21.0(\mathrm{E}+\mathrm{F}), 25.3(\mathrm{E}+\mathrm{F}+\mathrm{BEC})\), and \(21.1(\mathrm{E}+\mathrm{F}+\mathrm{Qeq})\). All three models use the same CACE settings \(\left(r=4.5 \AA, n_{l}=1\right.\), and \(v=3\) ). Panel (c): The test force RMSEs and BEC \(R^{2}\) values of MACE LES models ( \(r=4.5 \AA, n_{l}=2\), and \(\ell=1\) ) as a function of training set size. Panel (d): Computational performance benchmarks of MD simulations of bulk liquid water for varying system sizes ( \(N\) ) using LES-augmented MLIPs in single-precision (float32) with ASE implementations \({ }^{73}\) performed on an NVIDIA L40S GPU ( 48 GB memory). The left panel shows the timing of MD simulations using the MACE models ( \(r=4.5 \AA, n_{l}=2\) ) with different \(\ell\), both without (empty symbols and dashed lines) and with LES (filled symbols and solid lines). The right panel shows the timing of the CACE models ( \(r=4.5 \AA, n_{l}=1\), and \(v=3\) ), without LES (blue line), with LES (red line), and with Qeq scheme implementation (orange line). A reference line for \(N^{3}\) scaling is included to illustrate the performance. The CACE LES model with the Qeq scheme shows cubic scaling with respect to the number of atoms. Panel (e): The test RMSEs for energy and force of CACE LES models ( \(r=4.5 \AA, n_{l}=1\), and \(v=2\) ) with varying charge output dimensions. Panel (f): Infrared (IR) absorption spectra of bulk liquid water obtained with the \(E+F, E+F+B E C\), and \(E+F+Q e q C A C E L E S\) models. The experimental IR spectrum \({ }^{74}\) is included for comparison. \(E+F\) and \(E+F+B E C\) results are taken from Ref. 60.}
+\end{figure}
+
+Ref. 61. In addition, LES has been independently implemented in TACE. \({ }^{50}\) In Refs. 21, 59-61, and 72, LES has been extensively benchmarked on diverse systems, including bulk liquids, \({ }^{21,59-61}\) molecular crystals, \({ }^{61}\) polar molecules, \({ }^{21,59,61}\) ferroelectrics, \({ }^{60}\) and electrochemical interfaces. \({ }^{59,72}\) Overall, the LES augmentation was shown to universally improve the accuracy and ensure the reliable extraction of electrical response properties, including BECs, \({ }^{59-61}\) dipoles for finite systems, \({ }^{59,61}\) infrared spectra, \({ }^{60,61}\) and ionic electrical conductivities. \({ }^{60}\) Meanwhile, adding LES only introduces a marginal computational overhead, \({ }^{59,61}\) making it effectively a "free lunch."
+
+Throughout this Perspective, for illustrative purposes, we highlight representative results on the RPBE-D3 bulk water dataset, \({ }^{55}\) which consists of 604 training and 50 test configurations of 64 water molecules. The experimental value of \(\varepsilon_{\infty}=1.78\) for bulk water was assumed in the BEC analysis using Eq. (5).
+
+Figure 2(a) compares the test force RMSEs for the short-range baseline models (hollow bars) and their LES-augmented counterparts (solid bars) across several MLIP architectures. LES systematically reduces the force errors for all models, although the magnitude of the improvement depends on the underlying short-range architecture.
+
+Beyond improved energies and forces, LES-enabled models recover physically meaningful electrical response properties. As shown in Ref. 61, all LES-augmented MLIPs accurately predict BECs, indicating that the long-range electrostatics are captured in a physically consistent manner. As a representative example, Fig. 2(b) shows the close agreement between the DFT BECs and those predicted by the CACE LES model trained only on energy and forces (E \(+\mathrm{F})\). Importantly, the inference of both long-range electrostatics and BECs within LES is also highly data efficient. As shown in Fig. 2(c), the learning curves for the MACE LES model trained only on the energy and forces of different numbers of configurations demonstrate that accurate BEC predictions emerge rapidly and converge even faster than the forces. The BECs are not only sensitive indicators of the correct electrostatics but also are useful for computing electrical response properties, such as the water IR spectra shown in Fig. 2(f).
+
+Finally, Fig. 2(d) compares the inference speed of the shortrange baselines and the LES-augmented models for MACE and CACE. The results show that the additional computational cost associated with the long-range correction is small relative to the baseline evaluation cost, confirming that LES provides an efficient route to incorporating long-range electrostatics without sacrificing performance or system size scalability.
+
+The performance of LES, achieved with a simple algorithm and implementation, is surprising to us: long-range electrostatics for MLIPs turns out to be easier than we thought. In this Perspective, we distill the underlying design principles that make LES work, discuss other possible variants and extensions that also satisfy these principles, highlight the limitations and open questions, and outline our outlook for the future employment of long-range MLIPs.
+
+\section*{II. TWO SIMPLE PRINCIPLES}
+
+We argue that two simple design principles, outlined in the following, are sufficient for the easy and reliable incorporation of long-range electrostatics into MLIPs under the LES framework.
+
+\section*{A. Principle 1: Coulomb functional form with environment-dependent charges}
+
+This principle ensures the learned long-range interaction is physically grounded: the one-dimensional environment-dependent charge on each atom is physically interpretable, and the Coulomb form Eqs. (1) and (2) guarantees the correct asymptotic behavior and may help extrapolate beyond trained charge separation distances.
+
+Several long-range models shown in the blue region of Fig. 1, including 4G-HDNNP, \({ }^{23}\) PhysNet, \({ }^{22}\) BAMBOO, \({ }^{25}\) and AIMNET2, \({ }^{32}\) also satisfy this principle. In contrast, models in the purple region of Fig. 1 do not explicitly rely on physical charges. For example, although LODE \({ }^{39,40}\) encodes Coulomb and other asymptotically decaying potentials ( \(1 / r^{p}\) ) in the atomic environment, its high-dimensional features cannot be directly interpreted as physical charges. Similarly, Ewald MP \({ }^{38}\) learns long-range descriptors in reciprocal space using trainable frequency filters, without explicitly enforcing a \(1 / r\) interaction form.
+
+It is difficult to assert which strategy will yield better training accuracy: physically constrained electrostatics or fully learned long-range features. In principle, more flexible learned formulations can capture a broader class of long-range interactions, including dispersion, \({ }^{38,40}\) and may, therefore, achieve lower fitting errors. However, Coulomb forces represent the dominant contribution among long-range interactions, while most others are much weaker. At the same time, all long-range interactions are intrinsically weak relative to short-range forces, yet involve many more atoms, making them fundamentally harder to learn from finite training datasets without inductive bias. The empirical comparisons of these models on specific datasets are scarce in the literature. Fuchs et al. \({ }^{48}\) reported that an Allegro \({ }^{69}\) model with a charge equilibration layer achieves performance comparable with that of a PaiNN model \({ }^{75}\) with Ewald MP \({ }^{38}\) on the OE62 dataset. \({ }^{76}\) Several models, including 4G-HDNNP, \({ }^{23}\) charge-constrained ACE, \({ }^{33}\) LES-augmented models, \({ }^{59,61}\) LOREM, \({ }^{44}\) CELLI \({ }^{48}\) that uses a charge equilibration layer, charge-equilibrated TensorNet (QET), \({ }^{77}\) and NequIP-LR, \({ }^{49}\) have been benchmarked on some of the datasets \(\left[\mathrm{C}_{10} \mathrm{H}_{2} / \mathrm{C}_{10} \mathrm{H}_{3}^{+}, \mathrm{Ag}_{3}^{+/-}, \mathrm{Na}_{8 / 9} \mathrm{Cl}_{8}^{+}\right.\), and \(\mathrm{Au}_{2}\) on \(\left.\mathrm{MgO}(001)\right]\) compiled by Ko et al. \({ }^{23}\) Among these, LES and LOREM have some of the lowest test energy and force errors. However, it has been questioned whether these datasets cover very challenging long-range interactions. \({ }^{44}\) Moreover, these existing comparisons often use different short-range MLIP baselines, making it unclear whether the difference in accuracy stems from the baseline itself or the long-range correction.
+
+Here, we test how the dimensionality of the long-range features affects learning accuracy. In the original formulation of LES, \({ }^{21}\) the latent charge \(q^{\text {les }}\) can, in principle, be multi-dimensional, with the total long-range energy obtained by aggregating the contributions from different dimensions after the Ewald summation. Conceptually, such multi-dimensional latent charges are analogous to the high-dimensional long-range features used in Ewald MP \({ }^{38}\) and LODE. \({ }^{39,40}\) As shown in Fig. 2(e), CACE LES models trained with more latent charge output dimensions exhibit essentially negligible and inconsistent improvements in accuracy. While there are alternative ways to exploit high-dimensional long-range information, such as equivariant features, \({ }^{44}\) this example demonstrates that increasing
+the dimensionality of long-range features does not necessarily lead to higher training accuracy.
+
+In our view, the greatest advantage of adhering to an explicit Coulomb interaction form is interpretability. This interpretability extends beyond the conceptual meaning of "charges" and directly enables the computation of physically measurable quantities. As discussed in Refs. 59-61, the learned latent charges are predictive of molecular dipoles and higher-order multipoles and also enable the modeling of the electrical response properties such as IR spectra, ionic electrical conductivities, and ferroelectricity. Moreover, the charges can be useful in hybrid schemes such as coupling quantum mechanical calculations with MLIPs (QM/ML) \({ }^{78}\) or combining MLIPs with classical force fields with fixed charges (ML/MM). \({ }^{79}\)
+
+\section*{B. Principle 2: Not explicitly train on DFT charges}
+
+There is no unique way to map the continuous DFT electron density onto discrete partial charges: different partitioning schemes, \({ }^{24,80,81}\) such as Mulliken, \({ }^{82}\) Hirshfeld, \({ }^{83}\) and MBIS, \({ }^{84}\) often yield substantially different results. Consequently, training on one specific definition of DFT charges would imply a different longrange electrostatic description than training on another. In addition to the uniqueness issue, a more subtle point is that the Coulomb interactions between atomic charges are screened by the rapidly responding background electrons with the relative permittivity \(\varepsilon_{\infty}\). \({ }^{85,86}\) This screening is naturally absorbed in the LES formulation through learning from long-range electrostatic forces, \({ }^{60}\) but would generally be absent if atomic charges were learned directly. Consistent with this view, explicit training on DFT charges has also been shown to induce pathological behavior, leading to energy and force errors significantly larger than those of the short-range baseline, \({ }^{23}\) such that an additional charge equilibration scheme was required to mitigate such issues. \({ }^{23}\)
+
+Avoiding training on DFT charges also offers a practical advantage. Most MLIP training datasets, especially those originally designed for short-range models, provide only atomic positions, energies, forces, and sometimes stress tensors. By not requiring charge labels, long-range augmentation becomes immediately applicable to a much broader range of existing datasets and systems. It is worth mentioning that the LES architecture allows training on dipoles and/or BECs, which are physical quantities that can help improve the training.
+
+Moreover, explicit training on DFT charges does not appear to improve energy and force accuracy compared to LES. For the dataset of a diatomic gold cluster \(\mathrm{Au}_{2}\) supported on the \(\mathrm{MgO}(001)\) surface, \({ }^{23}\) which includes both wetting and non-wetting adsorption geometries and where aluminum dopants deep beneath the surface strongly affect the electronic structure and relative stability, a CACE \({ }^{70}\) model augmented with LES and trained only on energies and forces \({ }^{59}\) achieves nearly an order-of-magnitude lower errors than both the charge-constrained ACE model \({ }^{33,87}\) and the 4G-HDNNP. \({ }^{23}\)
+
+More importantly, we argue that the LES charges learned just from energies and forces are physically meaningful: they correspond to effective partial charges governing electrostatic interactions and are predictive of measurable physical observables. As shown in Refs. 59 and 61, the learned latent charges yield accurate molecular dipoles and multipoles and can further derive BECs using Eqs. (4) and (5). \({ }^{60}\)
+
+For the water example, Fig. 2(b) demonstrates that the LES BECs trained on energy and forces ( \(\mathrm{E}+\mathrm{F}\) ) are in excellent agreement with the DFT reference. These BECs enable the calculation of electrical response properties, such as IR spectra and electrical conductivities. \({ }^{60}\) Figure 2(f) shows the corresponding IR for bulk water: both the spectral shape and intensities are in good agreement with the experiment, capturing distinct high-frequency intramolecular and low-frequency intermolecular modes.
+
+Finally, with the predicted BEC , one can compute the electrostatic forces on atoms under an applied external electric field and perform molecular dynamics simulations under finite fields using MLIPs. Using this capability, we have shown that LES-augmented MLIPs can reproduce electric-field-dependent phenomena, including the IR spectral shift of bulk water under static fields, the ionic conductivity of a superionic material, and the polarization-electric field hysteresis loop of a ferroelectric material. \({ }^{60}\)
+
+\section*{III. OTHER POSSIBLE EXTENSIONS}
+
+Once the two design principles are met, LES can be combined with various additional strategies to suit specific applications. Here, we present several examples.
+
+\section*{A. Universal compatibility with any short-range MLIPs}
+
+LES can serve as a universal augmentation to any short-range MLIP \({ }^{61}\) and we have demonstrated its integration with methods such as MACE, \({ }^{12}\) NequIP, \({ }^{11}\) Allegro, \({ }^{69}\) CACE, \({ }^{70}\) CHGNet, \({ }^{71}\) and UMA. \({ }^{14}\) Among these, MACE, NequIP, CACE, CHGNet, and UMA use node features to predict local atomic energy contributions and the same features are straightforwardly used to predict the latent charges. Instead, Allegro uses edge features to predict pairwise energies, which are then summed to obtain per-atom energies; in the same spirit, the LES augmentation with Allegro predicts the pairwise charge contributions first using the same edge features and then aggregates them to form the per-atom latent charges.
+
+\section*{B. Optional fine-tuning using dipoles or BECs}
+
+Although energies and forces alone are sufficient to recover the correct electrostatics, additional training labels, such as dipoles or BEC tensors, can be incorporated for fine-tuning. For example, we show that fine-tuning CACE LES models using DFT-computed BECs further improves BEC prediction accuracy while preserving energy and force accuracy for both bulk water and \(\mathrm{PbTiO}_{3}\) datasets. \({ }^{60}\) The water example shown in the middle panel (E +F + BEC) of Fig. 2(b) illustrates this modest improvement in BEC predictions. As expected, the corresponding IR spectrum shown in Fig. 2(f) remains in good agreement with the experiment.
+
+\section*{C. Integrating optional charge equilibration (Qeq)}
+
+Empirically, we have found charge equilibration schemes to be unnecessary within the LES framework. \({ }^{21,59}\) For neutral systems, the sum of the learned charges is typically very close to zero; any small residual is treated as a uniform background charge, corresponding to the tinfoil boundary condition in the reciprocal-space evaluation of the electrostatic interactions in Eq. (2).
+
+Nevertheless, LES can be straightforwardly combined with charge equilibration using the Qeq approach, \({ }^{47,53}\) which determines the atomic charges \(q_{i}\) by minimizing the energy,
+\[
+E_{\mathrm{Qeq}}=E_{\mathrm{elec}}+\sum_{i=1}^{N}\left(x_{i} q_{i}+\frac{1}{2} J_{i} q_{i}^{2}\right)
+\]
+where \(E_{\text {elec }}\) is the Coulomb interaction between charges, \(\chi_{i}\) values represent the atomic electronegativities, and \(J_{i}\) values represent element-specific hardness parameters. The \(\chi_{i}\) values are predicted by a neural network from local invariant features, while \(J_{i}\) is assigned based on element type. Consistent with the LES design principles, no DFT charges are used for training.
+
+We implemented LES combined with Qeq (LES-Qeq in Fig. 1), with trainable \(\chi_{i}\) and \(J_{i}\). For the water example, the right panel ( E \(+\mathrm{F}+\mathrm{Qeq}\) ) of Fig. 2(b) shows that the addition of Qeq preserves the accurate predictions of forces and LES BECs. The corresponding predicted IR spectrum shown in Fig. 2(f) also exhibits good agreement with the reference. However, the computational cost of Qeq is substantial: the CACE LES-Qeq model in the right panel of Fig. 2(d) shows that incorporating Qeq leads to cubic scaling due to the matrix inversion operation involved. As such, methods have recently been proposed to reduce this cost, including using the iterative solution of Qeq instead of direct matrix inversion \({ }^{88}\) and developing a particle mesh iterative solver. \({ }^{89}\)
+
+\section*{D. Coupling with the Siepmann-Sprik metal model}
+
+As illustrated by the LES-MetalWall in Fig. 1, the LES can be coupled with the Siepmann-Sprik metal model: \({ }^{90}\) LES determines the charges on the electrolyte, and the Siepmann-Sprik method describes the response charges on metal electrodes. This hybrid long-range framework enables nanosecond finite-field MD simulations of electrode-electrolyte interfaces under periodic boundary conditions. \({ }^{72}\)
+
+\section*{E. Charge and spin embedding}
+
+For datasets containing multiple charge or spin states, a degeneracy problem can arise: configurations that are geometrically identical but electronically distinct share the same representations in standard MLIPs, which can lead to poor model performance. \({ }^{23,33}\) To lift the degeneracy, one can embed the charge and/or spin states directly in the local atomic environment features. This can be achieved either by encoding global charge or spin states to inform the local features of all atoms, \({ }^{59,91}\) or by utilizing atomwise states such as the oxidation state or the magnetic moment for each atom. \({ }^{91}\) As such, not only will the predicted atomic energies depend on these states but also the latent charges.
+
+\section*{F. Learning atomic dipoles or dispersion coefficients}
+
+The expression for the long-range energy in Eqs. (1) and (2) can be straightforwardly generalized to other \(1 / r^{p}\) interactions, such as charge-dipole ( \(p=2\) ), dipole-dipole ( \(p=3\) ), or dispersionlike ( \(p=6\) ) terms. In these cases, the learned latent variables would no longer be scalar charges but higher-order quantities: for example, equivariant atomic dipole vectors for dipolar interactions or per-atom dispersion coefficients for van der Waals-type contributions.
+
+\section*{IV. LIMITATIONS AND OPEN QUESTIONS}
+
+There are known limitations of the LES algorithm: First, the latent atomic charges \(q^{\text {les }}\) are determined from local features, and thus, do not provide an explicit mechanism for truly long-range charge transfer mediated by mobile carriers. In materials with metallic or highly delocalized electronic character, an applied external field can induce charge rearrangements that are, in principle, global. An example here is the induced surface charge on a macroscopic metal electrode. In such cases, a purely local LES scheme is not sufficient to describe global charge equilibration. A possible remedy is to couple LES to an explicit metallic boundary model, as in LES-MetalWall, where LES controls the electrolyte charges and the Siepmann-Sprik model performs charge equilibration on the metal electrodes. \({ }^{72}\)
+
+Second, extracting BEC tensors for periodic systems via Eq. (5) requires specifying a constant high-frequency dielectric permittivity \(\varepsilon_{\infty}\) for a homogeneous bulk material. \({ }^{60}\) For heterogeneous systems, such as interfaces between materials with different \(\varepsilon_{\infty}\), it is not obvious how to choose or generalize this parameter. Developing consistent strategies to extend LES-based BEC extraction and response-property calculations to inhomogeneous or interfacial systems remains an open challenge.
+
+Third, scalability to very large system sizes remains an engineering challenge. The nominal \(\mathcal{O}\left(N^{3 / 2}\right)\) scaling of Ewald summation itself is not the main bottleneck, as this operation is typically inexpensive relative to other components of modern MLIPs and more favorable scaling variants, such as particle-particle particle-mesh (P3M) or particle-mesh Ewald (PME), are readily available. \({ }^{43}\) Rather, the main difficulty arises because interatomic forces are obtained via the automatic differentiation of the total energy with respect to atomic positions, where the total energy is a global quantity that includes the long-range electrostatic contribution, which makes it nontrivial to distribute force evaluation across multiple GPUs.
+
+Finally, there is currently no "foundation model" \({ }^{92}\) that spans broad regions of chemical and materials space while incorporating LES. Encouragingly, MACELES-OFF, \({ }^{61}\) trained on the SPICE dataset \({ }^{93}\) of molecules and small clusters, is more accurate than its short-range counterpart MACE-OFF, \({ }^{94}\) predicts dipoles and BECs reliably, and provides improved descriptions of bulk liquids. However, it remains an open question whether LES augmentation will offer similar advantages for substantially larger, more diverse molecular datasets or bulk materials datasets. \({ }^{95,96}\) Exploring this direction is key to determining whether long-range electrostatics can be made standard in next-generation foundation MLIPs.
+
+\section*{V. CONCLUSION AND OUTLOOK}
+
+In this Perspective, we examine the connections and distinctions between LES and other representative methods for learning long-range interactions (Fig. 1). While many of the aforementioned approaches show great promise, we argue that a minimal and physically grounded design is sufficient for incorporating long-range electrostatics, based on two simple principles: (i) use a physical functional form with flexible, environment-dependent atomic charges to capture electrostatic interactions, and (ii) avoid explicit training on DFT partial charges. In addition, there are many avenues for other optional extensions.
+
+Despite the known limitations, many aspects of the LES method have turned out to be easier than we initially anticipated: the design principles and algorithm are straightforward; only standard energy and force labels are required, training is data-efficient [Fig. 2(c)]; electrical response properties can be extracted reliably [Figs. 2(b) and 2(f)]; and the associated computational overhead is low [Fig. 2(d)].
+
+This naturally raises a broader question: why do short-range MLIPs remain the dominant paradigm, while long-range electrostatic MLIPs have been adopted only sparingly in practical simulations? Equivalently, if long-range electrostatics can, in fact, be incorporated so simply and efficiently, why was this not widely recognized earlier? One plausible reason is that some of the early approaches shown in Fig. 1 do not fully satisfy the two design principles outlined above or may have higher computational expense. Another explanation may be that long-range methods have not yet been pushed and benchmarked extensively enough to convincingly demonstrate their broad applicability and computational efficiency.
+
+Another possibility is simply that the atomistic modeling community has long been used to short-range MLIPs and has not yet made the transition to long-range models. Speaking from our own experience, when one of us (B.C.) began using MLIPs around 2018, it was already striking that atomic interactions could be learned and converged simulations performed with near-quantum mechanical accuracy. At that time, the systems we studied were predominantly homogeneous bulk systems, such as bulk water, \({ }^{97}\) superionic water, \({ }^{98}\) and high-pressure liquid hydrogen. \({ }^{99}\) For these systems, long-range electrostatics is conceptually important, but was not the main concern: long-range interactions are largely isotropic and tend to average out, allowing short-range models to effectively learn the mean-field forces. Many observables of interest, such as radial distribution functions, transport coefficients, and free energies, are not sensitive to long-range electrostatics. \({ }^{100}\) At the same time, the training errors of the first-generation MLIPs \({ }^{7,8}\) were substantially larger than those of atomic cluster expansion (ACE) \({ }^{87}\) or MPNNs \({ }^{101}\) due to the lack of higher-body-order terms, making longrange errors relatively less important. It is only more recently, as our work has shifted toward heterogeneous and interfacial systems, that long-range electrostatics has become essential. Interfaces introduce inhomogeneity, as well as intrinsic polarization and electric fields, where the short-range MLIPs struggle. As the community increasingly studies complex, multi-component, and field-driven systems, especially electrochemical interfaces, polar and ionic materials, and biomolecules, we expect long-range MLIPs to become not just beneficial but necessary.
+
+\section*{ACKNOWLEDGMENTS}
+B.C. thanks Christoph Dellago for his mentorship and influence. In addition to his seminal contributions to statistical mechanics, Christoph Dellago is an early developer and adopter of machine learning interatomic potentials. B.C. did two exchanges in the groups of Christoph Dellago and Jörg Behler in 2018, with transformative impact on her research directions.
+
+We thank Peichen Zhong and Daniel S. King for useful feedback on the manuscript and for the collaborations on the LES method.
+
+Funding acknowledgment: Research reported in this publication was supported by the National Institute Of General Medical Sciences of the National Institutes of Health under Award No. R35GM159986. The content is solely the responsibility of the authors and does not necessarily represent the official views of the National Institutes of Health.
+
+\section*{AUTHOR DECLARATIONS}
+
+\section*{Conflict of Interest}
+B.C. has an equity stake in AIMATX Inc. B.C. has Patent No. 19/307,702 (pending) for the Latent Ewald Summation algorithm.
+
+\section*{Author Contributions}
+
+Dongjin Kim: Investigation (equal); Methodology (equal); Software (equal); Validation (equal); Visualization (equal); Writing - original draft (equal); Writing - review \& editing (equal). Bingqing Cheng: Conceptualization (equal); Funding acquisition (equal); Investigation (equal); Methodology (equal); Project administration (equal); Resources (equal); Software (equal); Supervision (equal); Validation (equal); Visualization (equal); Writing - original draft (equal); Writing - review \& editing (equal).
+
+\section*{DATA AVAILABILITY}
+
+The RPBE-D3 bulk water dataset, training scripts, evaluation scripts, the trained CACE E + F + Qeq model, and CACE LES and MACE LES models used to produce results shown in Figs. 2(c)-2(e) are available at https://github.com/ChengUCB/les_fit.
+
+The LES library is publicly available at https://github.com/ ChengUCB/les. The CACE package with the LES implementation is available at https://github.com/BingqingCheng/cace. The MACE package with the LES implementation is available at https:// github.com/ACEsuit/mace. The NequIP and Allegro LES extension package is available at https://github.com/ChengUCB/NequIP-LES. The MatGL package with the LES implementation is available at https://github.com/ChengUCB/matgl. The UMA package with the LES implementation is available at https://github.com/santi921/ fairchem/tree/les_branch.
+
+\section*{REFERENCES}
+\({ }^{1}\) R. H. French, V. A. Parsegian, R. Podgornik, R. F. Rajter, A. Jagota, J. Luo, D. Asthagiri, M. K. Chaudhury, Y.-m. Chiang, S. Granick et al., "Long range interactions in nanoscale science," Rev. Mod. Phys. 82, 1887-1944 (2010).
+\({ }^{2}\) D. M. York, W. Yang, H. Lee, T. Darden, and L. G. Pedersen, "Toward the accurate modeling of DNA: The importance of long-range electrostatics," J. Am. Chem. Soc. 117, 5001-5002 (1995).
+\({ }^{3}\) J. M. Rodgers and J. D. Weeks, "Interplay of local hydrogen-bonding and longranged dipolar forces in simulations of confined water," Proc. Natl. Acad. Sci. U. S. A. 105, 19136-19141 (2008).
+\({ }^{4}\) E. Prodan and W. Kohn, "Nearsightedness of electronic matter," Proc. Natl. Acad. Sci. U. S. A. 102, 11635-11638 (2005).
+\({ }^{5}\) J. A. Keith, V. Vassilev-Galindo, B. Cheng, S. Chmiela, M. Gastegger, K.R. Müller, and A. Tkatchenko, "Combining machine learning and computational chemistry for predictive insights into chemical systems," Chem. Rev. 121, 9816-9872 (2021).
+\({ }^{6}\) O. T. Unke, S. Chmiela, H. E. Sauceda, M. Gastegger, I. Poltavsky, K. T. Schütt, A. Tkatchenko, and K.-R. Müller, "Machine learning force fields," Chem. Rev. 121, 10142-10186 (2021).
+\({ }^{7}\) J. Behler and M. Parrinello, "Generalized neural-network representation of highdimensional potential-energy surfaces," Phys. Rev. Lett. 98, 146401 (2007).
+\({ }^{8}\) A. P. Bartók, M. C. Payne, R. Kondor, and G. Csányi, "Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons," Phys. Rev. Lett. 104, 136403 (2010).
+\({ }^{9}\) K. Schütt, P.-J. Kindermans, H. E. S. Felix, S. Chmiela, A. Tkatchenko, and K.-R. Müller, "SchNet: A continuous-filter convolutional neural network for modeling quantum interactions," in Advances in Neural Information Processing Systems 30 (NIPS Foundation, 2017).
+\({ }^{10}\) M. Haghighatlari, J. Li, X. Guan, O. Zhang, A. Das, C. J. Stein, F. HeidarZadeh, M. Liu, M. Head-Gordon, L. Bertels, H. Hao, I. Leven, and T. HeadGordon, "Newtonnet: A Newtonian message passing network for deep learning of interatomic potentials and forces," Digital Discovery 1, 333-343 (2022).
+\({ }^{11}\) B. Simon, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, "E (3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials," Nat. Commun. 13, 2453 (2022).
+\({ }^{12}\) I. Batatia, D. P. Kovacs, G. Simm, C. Ortner, and G. Csányi, "Mace: Higher order equivariant message passing neural networks for fast and accurate force fields," Adv. Neural Inf. Process. Syst. 35, 11423-11436 (2022).
+\({ }^{13}\) F. Xiang, B. M. Wood, L. Barroso-Luque, D. S. Levine, M. Gao, M. Dzamba, and C. Lawrence Zitnick, "Learning smooth and expressive interatomic potentials for physical property prediction," arXiv:2502.12147 (2025).
+\({ }^{14}\) B. M. Wood, M. Dzamba, F. Xiang, M. Gao, M. Shuaibi, L. Barroso-Luque, K. Abdelmaqsoud, V. Gharakhanyan, J. R. Kitchin, D. S. Levine, K. Michel, A. Sriram, T. Cohen, A. Das, A. Rizvi, S. J. Sahoo, Z. W. Ulissi, and C. Lawrence Zitnick, "UMA: A family of universal models for atoms," arXiv:2506.23971 (2025).
+\({ }^{15}\) Q. Li, Z. Han, and X.-M. Wu, "Deeper insights into graph convolutional networks for semi-supervised learning," arXiv:1801.07606 (2018).
+\({ }^{16}\) U. Alon and E. Yahav, On the bottleneck of graph neural networks and its practical implications (2021).
+\({ }^{17}\) T. W. Ko, J. A. Finkler, S. Goedecker, and J. Behler, "General-purpose machine learning potentials capturing nonlocal charge transfer," Acc. Chem. Res. 54, 808-817 (2021).
+\({ }^{18}\) E. Kocer, T. W. Ko, and J. Behler, "Neural network potentials: A concise overview of methods," Annu. Rev. Phys. Chem. 73, 163-186 (2022).
+\({ }^{19}\) J. Behler, "Four generations of high-dimensional neural network potentials," Chem. Rev. 121, 10037-10072 (2021).
+\({ }^{20}\) D. M. Anstine and O. Isayev, "Machine learning interatomic potentials and long-range physics," J. Phys. Chem. A 127, 2417-2431 (2023).
+\({ }^{21}\) B. Cheng, "Latent Ewald summation for machine learning of long-range interactions," npj Comput. Mater. 11, 80 (2025).
+\({ }^{22}\) O. T. Unke and M. Meuwly, "PhysNet: A neural network for predicting energies, forces, dipole moments, and partial charges," J. Chem. Theory Comput. 15, 3678-3693 (2019).
+\({ }^{23}\) T. W. Ko, J. A. Finkler, S. Goedecker, and J. Behler, "A fourth-generation highdimensional neural network potential with accurate electrostatics including nonlocal charge transfer," Nat. Commun. 12, 398 (2021).
+\({ }^{24}\) A. E. Sifain, N. Lubbers, B. T. Nebgen, J. S. Smith, A. Y. Lokhov, O. Isayev, A. E. Roitberg, K. Barros, and S. Tretiak, "Discovering a transferable charge assignment model using machine learning," J. Phys. Chem. Lett. 9, 4495-4501 (2018).
+\({ }^{25}\) S. Gong, Y. Zhang, Z. Mu, Z. Pu, H. Wang, X. Han, Z. Yu, M. Chen, T. Zheng, Z. Wang, L. Chen, Z. Yang, X. Wu, S. Shi, W. Gao, W. Yan, and L. Xiang, "A predictive machine learning force-field framework for liquid electrolyte development," Nat. Mach. Intell. 7, 543-552 (2025).
+\({ }^{26}\) Y. Shaidu, F. Pellegrini, E. Küçükbenli, R. Lot, and S. de Gironcoli, "Incorporating long-range electrostatics in neural network potentials via variational charge equilibration from shortsighted ingredients," npj Comput. Mater. 10, 47 (2024).
+\({ }^{27}\) Z. Song, J. Han, G. Henkelman, and L. Li, "Charge-optimized electrostatic interaction atom-centered neural network algorithm," J. Chem. Theory Comput. 20, 2088-2097 (2024).
+\({ }^{28}\) A. Kabylda, J. T. Frank, S. Suárez-Dou, A. Khabibrakhmanov, L. Medrano Sandonas, O. T. Unke, S. Chmiela, K.-R. Müller, and A. Tkatchenko, "Molecular simulations with a pretrained neural network and universal pairwise force fields," J. Am. Chem. Soc. 147, 33723-33734 (2025).
+\({ }^{29}\) L. D. Jacobson, J. M. Stevenson, F. Ramezanghorbani, D. Ghoreishi, K. Leswing, E. D. Harder, and R. Abel, "Transferable neural network potential energy surfaces for closed-shell organic molecules: Extension to ions," J. Chem. Theory Comput. 18, 2354-2366 (2022).
+\({ }^{30}\) M. Thürlemann, L. Böselt, and S. Riniker, "Learning atomic multipoles: Prediction of the electrostatic potential with equivariant graph neural networks," J. Chem. Theory Comput. 18, 1701-1710 (2022).
+\({ }^{31}\) T. Morawietz, V. Sharma, and J. Behler, "A neural network potential-energy surface for the water dimer based on environment-dependent atomic energies and charges," J. Chem. Phys. 136, 064103 (2012).
+\({ }^{32}\) D. M. Anstine, R. Zubatyuk, and O. Isayev, "AIMNet2: A neural network potential to meet your neutral, charged, organic, and elemental-organic needs," Chem. Sci. 16, 10228-10244 (2025).
+\({ }^{33}\) M. Rinaldi, A. Bochkarev, Y. Lysogorskiy, and R. Drautz, "Charge-constrained atomic cluster expansion," Phys. Rev. Mater. 9, 033802 (2025).
+\({ }^{34}\) O. T. Unke, S. Chmiela, M. Gastegger, K. T. Schütt, H. E. Sauceda, and K.-R. Müller, "Spookynet: Learning force fields with electronic degrees of freedom and nonlocal effects," Nat. Commun. 12, 7273 (2021).
+\({ }^{35}\) L. Zhang, H. Wang, M. C. Muniz, A. Z. Panagiotopoulos, R. Car, and E. Weinan, "A deep potential model with long-range electrostatic interactions," J. Chem. Phys. 156, 124107 (2022).
+\({ }^{36}\) A. Gao and R. C. Remsing, "Self-consistent determination of long-range electrostatics in neural network potentials," Nat. Commun. 13, 1572 (2022).
+\({ }^{37}\) H. Yu, L. Hong, S. Chen, X. Gong, and H. Xiang, "Capturing long-range interaction with reciprocal space neural network," arXiv:2211.16684 (2022).
+\({ }^{38}\) A. Kosmala, J. Gasteiger, N. Gao, and S. Günnemann, "Ewald-based long-range message passing for molecular graphs," in International Conference on Machine Learning (PMLR, 2023), pp. 17544-17563.
+\({ }^{39}\) A. Grisafi and M. Ceriotti, "Incorporating long-range physics in atomic-scale machine learning," J. Chem. Phys. 151, 204105 (2019).
+\({ }^{40}\) K. K. Huguenin-Dumittan, P. Loche, N. Haoran, and M. Ceriotti, "Physicsinspired equivariant descriptors of nonbonded interactions," J. Phys. Chem. Lett. 14, 9612-9618 (2023).
+\({ }^{41}\) C. Faller, M. Kaltak, and G. Kresse, "Density-based long-range electrostatic descriptors for machine learning force fields," J. Chem. Phys. 161, 214701 (2024).
+\({ }^{42}\) L. Monacelli and N. Marzari, "Electrostatic interactions in atomistic and machine-learned potentials for polar materials," arXiv:2412.01642 (2024).
+\({ }^{43}\) P. Loche, K. K. Huguenin-Dumittan, M. Honarmand, Q. Xu, E. Rumiantsev, W. B. How, M. F. Langer, and M. Ceriotti, "Fast and flexible long-range models for atomistic machine learning," J. Chem. Phys. 162, 142501 (2025).
+\({ }^{44}\) E. Rumiantsev, M. F. Langer, T.-E. Sodjargal, M. Ceriotti, and P. Loche, "Learning long-range representations with equivariant messages," arXiv:2507.19382 (2025).
+\({ }^{45}\) A. Caruso, J. Venturin, L. Giambagli, E. Rolando, F. Noé, and C. Clementi, "Extending the range of graph neural networks: Relaying attention nodes for global encoding," arXiv:2502.13797 (2025).
+\({ }^{46}\) J. L. Weber, R. D. Guha, G. Agarwal, Y. Wei, A. A. Fike, X. Xie, J. Stevenson, K. Leswing, M. D. Halls, R. Abel, and L. D. Jacobson, "Efficient long-range machine learning force fields for liquid and materials properties," arXiv:2505.06462 (2025).
+\({ }^{47}\) S. A. Ghasemi, A. Hofstetter, S. Saha, and S. Goedecker, "Interatomic potentials for ionic systems with density functional accuracy based on charge densities obtained by a neural network," Phys. Rev. B 92, 045131 (2015).
+\({ }^{48}\) P. Fuchs, M. Sanocki, and J. Zavadlav, "Learning non-local molecular interactions via equivariant local representations and charge equilibration," npj Comput. Mater. 11, 287 (2025).
+\({ }^{49}\) M. U. Maruf, S. Kim, and Z. Ahmad, "Learning long-range interactions in equivariant machine learning interatomic potentials via electronic degrees of freedom," J. Phys. Chem. Lett. 16, 9078-9087 (2025).
+\({ }^{50}\) Z. Xu, W. Xie, D. Xie, and P. Hu, "Towards universal property prediction in Cartesian space: TACE is all you need," arXiv:2509.14961 (2025).
+\({ }^{51}\) T. Plé, O. Adjoua, A. Benali, E. Posenitskiy, C. Villot, L. Lagardère, and J.P. Piquemal, "A foundation model for accurate atomistic simulations in drug design," chemRxiv:2025-f1hgn-v4 (2025).
+\({ }^{52}\) R. Gao, C. Y. Yam, J. Mao, S. Chen, G. H. Chen, and Z. Hu, "A foundation machine learning potential with polarizable long-range interactions for materials modelling," Nat. Commun. 16, 10484 (2025).
+\({ }^{53}\) A. K. Rappe and W. A. Goddard III, "Charge equilibration for molecular dynamics simulations," J. Phys. Chem. 95, 3358-3363 (1991).
+\({ }^{54}\) S. Falletta, A. Cepellotti, A. Johansson, C. W. Tan, M. L. Descoteaux, A. Musaelian, C. J. Owen, and B. Kozinsky, "Unified differentiable learning of electric response," Nat. Commun. 16, 4031 (2025).
+\({ }^{55}\) B. Schmiedmayer and G. Kresse, "Derivative learning of tensorial quantities-Predicting finite temperature infrared spectra from first principles," J. Chem. Phys. 161, 084703 (2024).
+\({ }^{56}\) E. Stocco, C. Carbogno, and M. Rossi, "Electric-field driven nuclear dynamics of liquids and solids from a multi-valued machine-learned dipolar model," npj Comput. Mater. 11, 304 (2025).
+\({ }^{57}\) Y. Zhang and B. Jiang, "Universal machine learning for the response of atomistic systems to external fields," Nat. Commun. 14, 6424 (2023).
+\({ }^{58}\) M. Gastegger, K. T. Schütt, and K.-R. Müller, "Machine learning of solvent effects on molecular spectra and reactions," Chem. Sci. 12, 11473-11483 (2021).
+\({ }^{59}\) D. S. King, D. Kim, P. Zhong, and B. Cheng, "Machine learning of charges and long-range interactions from energies and forces," Nat. Commun. 16, 8763 (2025).
+\({ }^{60}\) P. Zhong, D. Kim, D. S. King, and B. Cheng, "Machine learning interatomic potential can infer electrical response," npj Comput. Mater. 11, 384 (2025).
+\({ }^{61}\) D. Kim, X. Wang, S. Vargas, P. Zhong, D. S. King, T. J. Inizan, and B. Cheng, "A universal augmentation framework for long-range electrostatics in machine learning interatomic potentials," J. Chem. Theory Comput. 21, 12709-12724 (2025).
+\({ }^{62}\) A. Grisafi, A. Fabrizio, B. Meyer, D. M. Wilkins, C. Corminboeuf, and M. Ceriotti, "Transferable machine-learning model of the electron density," ACS Cent. Sci. 5, 57-64 (2019).
+\({ }^{63}\) A. M. Lewis, A. Grisafi, M. Ceriotti, and M. Rossi, "Learning electron densities in the condensed phase," J. Chem. Theory Comput. 17, 7203-7214 (2021).
+\({ }^{64}\) A. Grisafi, A. Bussy, M. Salanne, and R. Vuilleumier, "Predicting the charge density response in metal electrodes," Phys. Rev. Mater. 7, 125403 (2023).
+\({ }^{65}\) H. Yu, S. Deng, H. Zhu, M. Xie, Y. Zhang, X. Shi, J. Zhong, C. He, and H. Xiang, "Prediction of room temperature ferroelectricity in subnano silicon thin films with an antiferroelectric ground state," Phys. Rev. Lett. 135, 156801 (2025).
+\({ }^{66}\) A. Grisafi, D. M. Wilkins, G. Csányi, and M. Ceriotti, "Symmetry-adapted machine learning for tensorial properties of atomistic systems," Phys. Rev. Lett. 120, 036002 (2018).
+\({ }^{67}\) P. Schienbein, "Spectroscopy from machine learning by accurately representing the atomic polar tensor," J. Chem. Theory Comput. 19, 705-712 (2023).
+\({ }^{68}\) K. Joll, P. Schienbein, K. M. Rosso, and J. Blumberger, "Machine learning the electric field response of condensed phase systems using perturbed neural network potentials," Nat. Commun. 15, 8192 (2024).
+\({ }^{69}\) A. Musaelian, S. Batzner, A. Johansson, L. Sun, C. J. Owen, M. Kornbluth, and B. Kozinsky, "Learning local equivariant representations for large-scale atomistic dynamics," Nat. Commun. 14, 579 (2023).
+\({ }^{70}\) B. Cheng, "Cartesian atomic cluster expansion for machine learning interatomic potentials," npj Comput. Mater. 10, 157 (2024).
+\({ }^{71}\) B. Deng, P. Zhong, K. J. Jun, J. Riebesell, K. Han, C. J. Bartel, and G. Ceder, "Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling," Nat. Mach. Intell. 5, 1031-1041 (2023).
+\({ }^{72}\) X. Wang, J. Chen, Z. Zeng, F. Stein, J. Lim, and B. Cheng, "Ion-modulated structure, proton transfer, and capacitance in the \(\operatorname{Pt}(111) /\) water electric double layer," arXiv:2509.13727(2025).
+\({ }^{73}\) A. Hjorth Larsen, J. Jørgen Mortensen, J. Blomqvist, I. E. Castelli, R. Christensen, M. Dułak, J. Friis, M. N. Groves, B. Hammer, C. Hargus, E. D. Hermes, P. C. Jennings, P. Bjerre Jensen, J. Kermode, J. R. Kitchin, E. Leonhard Kolsbjerg, J. Kubal, K. Kaasbjerg, S. Lysgaard, J. B. Maronsson, T. Maxson, T. Olsen, L. Pastewka, A. Peterson, C. Rostgaard, J. Schiøtz, O. Schütt, M. Strange, K. S. Thygesen, T. Vegge, L. Vilhelmsen, M. Walter, Z. Zeng, and K. W. Jacobsen, "The atomic simulation environment-A python library for working with atoms," J. Phys.: Condens. Matter 29, 273002 (2017).
+\({ }^{74}\) J. E. Bertie and Z. Lan, "Infrared intensities of liquids XX: The intensity of the oh stretching band of liquid water revisited, and the best current values of the optical constants of \(\mathrm{H}_{2} \mathrm{O}(\mathrm{l})\) at \(25^{\circ} \mathrm{C}\) between 15,000 and \(1 \mathrm{~cm}^{-1}\)," Appl. Spectrosc. 50, 1047-1057 (1996).
+\({ }^{\mathbf{7 5}}\) K. Schütt, O. Unke, and M. Gastegger, "Equivariant message passing for the prediction of tensorial properties and molecular spectra," in Proceedings of the 38th International Conference on Machine Learning, Proceedings of Machine Learning Research, edited by M. Meila and T. Zhang (PMLR, 2021), Vol. 139, pp. 9377-9388.
+\({ }^{76}\) A. Stuke, C. Kunkel, D. Golze, M. Todorović, J. T. Margraf, K. Reuter, P. Rinke, and H. Oberhofer, "Atomic structures and orbital energies of 61,489 crystal-forming organic molecules," Sci. Data 7, 58 (2020).
+\({ }^{77}\) T. W. Ko, R. Liu, A. R. Mishra, Z. Yu, J. Qi, and S. P. Ong, A fast, accurate, and reactive equivariant foundation potential (2025).
+\({ }^{78}\) J. A. Semelak, I. Pickering, K. Huddleston, J. Olmos, J. S. Grassano, C. M. Clemente, S. I. Drusin, M. Marti, M. C. Gonzalez Lebrero, A. E. Roitberg, and D. A. Estrin, "Advancing multiscale molecular modeling with machine learning-derived electrostatics," J. Chem. Theory Comput. 21, 5194-5207 (2025).
+\({ }^{79}\) J. Morado, K. Zinovjev, L. O. Hedges, D. J. Cole, and J. Michel, "Enhancing electrostatic embedding for ML/MM free energy calculations," J. Chem. Theory Comput. 21, 11805-11819 (2025).
+\({ }^{80}\) A. V. Marenich, S. V. Jerome, C. J. Cramer, and D. G. Truhlar, "Charge model 5: An extension of Hirshfeld population analysis for the accurate description of molecular interactions in gaseous and condensed phases," J. Chem. Theory Comput. 8, 527-541 (2012).
+\({ }^{81}\) K. B. Wiberg and P. R. Rablen, "Comparison of atomic charges derived via different procedures," J. Comput. Chem. 14, 1504-1518 (1993).
+\({ }^{82}\) R. S. Mulliken, "Electronic population analysis on LCAO-MO molecular wave functions. I," J. Chem. Phys. 23, 1833-1840 (1955).
+\({ }^{83}\) F. L. Hirshfeld, "Bonded-atom fragments for describing molecular charge densities," Theor. Chim. Acta 44, 129-138 (1977).
+\({ }^{84}\) T. Verstraelen, S. Vandenbrande, F. Heidar-Zadeh, L. Vanduyfhuys, V. Van Speybroeck, M. Waroquier, and P. W. Ayers, "Minimal basis iterative stockholder: Atoms in molecules for force-field development," J. Chem. Theory Comput. 12, 3894-3912 (2016).
+\({ }^{85}\) I. V. Leontyev, M. V. Vener, I. V. Rostov, M. V. Basilevsky, and M. D. Newton, "Continuum level treatment of electronic polarization in the framework of molecular simulations of solvation effects," J. Chem. Phys. 119, 8024-8037 (2003).
+\({ }^{86} \mathrm{M}\). Jorge, "Theoretically grounded approaches to account for polarization effects in fixed-charge force fields," J. Chem. Phys. 161, 180901 (2024).
+\({ }^{87}\) R. Drautz, "Atomic cluster expansion for accurate and transferable interatomic potentials," Phys. Rev. B 99, 014104 (2019).
+\({ }^{88}\) E. Kocer, A. Singraber, J. A. Finkler, P. Misof, T. W. Ko, C. Dellago, and J. Behler, "Iterative charge equilibration for fourth-generation high-dimensional neural network potentials," J. Chem. Phys. 162, 124106 (2025).
+\({ }^{89}\) M. Gubler, J. A. Finkler, M. R. Schäfer, J. Behler, and S. Goedecker, "Accelerating fourth-generation machine learning potentials using quasi-linear scaling particle mesh charge equilibration," J. Chem. Theory Comput. 20, 7264-7271 (2024).
+\({ }^{90}\) J. I. Siepmann and M. Sprik, "Influence of surface topology and electrostatic potential on water/electrode systems," J. Chem. Phys. 102, 511-524 (1995).
+\({ }^{91}\) G. Simeon, A. Mirarchi, R. P. Pelaez, R. Galvelis, and G. De Fabritiis, "Broadening the scope of neural network potentials through direct inclusion of additional molecular attributes," J. Chem. Theory Comput. 21, 1831-1837 (2025).
+\({ }^{92}\) E. C.-Y. Yuan, Y. Liu, J. Chen, P. Zhong, S. Raja, T. Kreiman, S. Vargas, W. Xu, M. Head-Gordon, C. Yang, S. M. Blau, B. Cheng, A. Krishnapriyan, and T. Head-Gordon, "Foundation models for atomistic simulation of chemistry and materials," arXiv:2503.10538 (2025).
+\({ }^{93}\) P. Eastman, P. K. Behara, D. L. Dotson, R. Galvelis, J. E. Herr, J. T. Horton, Y. Mao, J. D. Chodera, B. P. Pritchard, Y. Wang, G. De Fabritiis, and T. E. Markland, "Spice, a dataset of drug-like molecules and peptides for training machine learning potentials," Sci. Data 10, 11 (2023).
+\({ }^{94}\) D. Péter Kovács, J. Harry Moore, N. J. Browning, I. Batatia, J. T. Horton, Y. Pu, V. Kapil, W. C. Witt, I.-B. Magdău, D. J. Cole, and G. Csányi, "Mace-off: Shortrange transferable machine learning force fields for organic molecules," J. Am. Chem. Soc. 147, 17598-17611 (2025).
+\({ }^{95}\) L. Barroso-Luque, M. Shuaibi, F. Xiang, B. M. Wood, M. Dzamba, M. Gao, A. Rizvi, C. Lawrence Zitnick, and Z. W. Ulissi, "Open Materials 2024 (OMat24) inorganic materials dataset and models," arXiv:2410.12771 (2024).
+\({ }^{96}\) D. S. Levine, M. Shuaibi, E. W. C. Spotte-Smith, M. G. Taylor, M. R. Hasyim, K. Michel, I. Batatia, G. Csányi, M. Dzamba, P. Eastman, N. C. Frey, F. Xiang, V. Gharakhanyan, A. S. Krishnapriyan, J. A. Rackers, S. Raja, A. Rizvi, A. S. Rosen, Z. Ulissi, S. Vargas, C. Lawrence Zitnick, S. M. Blau, and B. M. Wood, "The Open Molecules 2025 (OMol25) dataset, evaluations, and models," arXiv:2505.08762 (2025).
+\({ }^{97}\) B. Cheng, E. A. Engel, J. Behler, C. Dellago, and M. Ceriotti, "Ab initio thermodynamics of liquid and solid water," Proc. Natl. Acad. Sci. U. S. A. 116, 1110-1115 (2019).
+\({ }^{98}\) B. Cheng, M. Bethkenhagen, C. J. Pickard, and S. Hamel, "Phase behaviours of superionic water at planetary conditions," Nat. Phys. 17, 1228-1232 (2021).
+\({ }^{99}\) B. Cheng, G. Mazzola, C. J. Pickard, and M. Ceriotti, "Evidence for supercritical behaviour of high-pressure liquid hydrogen," Nature 585, 217-220 (2020).
+\({ }^{100}\) S. Yue, M. Carolina Muniz, M. F. C. Andrade, L. Zhang, R. Car, and A. Z. Panagiotopoulos, "When do short-range atomistic machine-learning models fall short?," J. Chem. Phys. 154, 034111 (2021).
+\({ }^{101}\) I. Batatia, S. Batzner, D. P. Kovács, A. Musaelian, G. N. C. Simm, R. Drautz, C. Ortner, B. Kozinsky, and G. Csányi, "The design space of E(3)-equivariant atomcentred interatomic potentials," Nat. Mach. Intell. 7, 56-67 (2025).

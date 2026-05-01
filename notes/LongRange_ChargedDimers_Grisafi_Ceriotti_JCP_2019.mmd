@@ -1,0 +1,240 @@
+\section*{Incorporating long-range physics in atomicscale machine learning ©}
+
+Cite as: J. Chem. Phys. 151, 204105 (2019); https://doi.org/10.1063/1.5128375
+Submitted: 19 September 2019 . Accepted: 11 November 2019 . Published Online: 26 November 2019
+Andrea Grisafi (D), and Michele Ceriotti (D)
+
+\section*{COLLECTIONS}
+
+Note: This paper is part of the JCP Special Topic on Machine Learning Meets Chemical Physics.
+F This paper was selected as Featured
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/e94d0c9c-1d9e-4457-ab6b-b215695d45b4-1.jpg?height=87&width=89&top_left_y=878&top_left_x=1516}
+\captionsetup{labelformat=empty}
+\caption{View Online}
+\end{figure}
+![](https://cdn.mathpix.com/cropped/e94d0c9c-1d9e-4457-ab6b-b215695d45b4-1.jpg?height=96&width=110&top_left_y=876&top_left_x=1697)
+
+\section*{ARTICLES YOU MAY BE INTERESTED IN}
+
+Adventures in DFT by a wavefunction theorist
+The Journal of Chemical Physics 151, 160901 (2019); https://doi.org/10.1063/1.5116338
+A hybrid approach to extending selected configuration interaction and full configuration interaction quantum Monte Carlo
+The Journal of Chemical Physics 151, 174103 (2019); https://doi.org/10.1063/1.5123146
+Single nanoparticle photoelectrochemistry: What is next?
+The Journal of Chemical Physics 151, 180901 (2019); https://doi.org/10.1063/1.5124710
+
+\title{
+Incorporating long-range physics in atomic-scale machine learning (
+}
+
+\author{
+Cite as: J. Chem. Phys. 151, 204105 (2019); doi: 10.1063/1.5128375 \\ Submitted: 19 September 2019 • Accepted: 11 November 2019 • \\ Published Online: 26 November 2019
+}
+
+\section*{Andrea Grisafi (D) and Michele Ceriotti \({ }^{\text {a) }}\) (D)}
+
+\author{
+AFFILIATIONS \\ Laboratory of Computational Science and Modeling, IMX, École Polytechnique Fédérale de Lausanne, 1015 Lausanne, Switzerland \\ Note: This paper is part of the JCP Special Topic on Machine Learning Meets Chemical Physics. \\ \({ }^{\text {a) }}\) Electronic mail: michele.ceriotti@epfl.ch
+}
+
+\begin{abstract}
+The most successful and popular machine learning models of atomic-scale properties derive their transferability from a locality ansatz. The properties of a large molecule or a bulk material are written as a sum over contributions that depend on the configurations within finite atomcentered environments. The obvious downside of this approach is that it cannot capture nonlocal, nonadditive effects such as those arising due to long-range electrostatics or quantum interference. We propose a solution to this problem by introducing nonlocal representations of the system, which are remapped as feature vectors that are defined locally and are equivariant in \(O(3)\). We consider, in particular, one form that has the same asymptotic behavior as the electrostatic potential. We demonstrate that this framework can capture nonlocal, longrange physics by building a model for the electrostatic energy of randomly distributed point-charges, for the unrelaxed binding curves of charged organic molecular dimers, and for the electronic dielectric response of liquid water. By combining a representation of the system that is sensitive to long-range correlations with the transferability of an atom-centered additive model, this method outperforms current state-of-the-art machine-learning schemes and provides a conceptual framework to incorporate nonlocal physics into atomistic machine learning.
+\end{abstract}
+
+Published under license by AIP Publishing. https://doi.org/10.1063/1.5128375
+
+\section*{I. INTRODUCTION}
+
+In recent years, atomistic machine learning models have become increasingly popular as a way to perform fast predictions of molecular and material properties with the accuracy of firstprinciple quantum mechanical calculations, \({ }^{1}\) but at a much reduced cost. The success of these methods has gone hand-in-hand with the progress in constructing representations for molecular and materials configurations that are flexible enough to be transferred across a wide spectrum of different atomic arrangements, while satisfying, at the same time, stringent symmetry constraints. \({ }^{2-6}\)
+
+At the core of the vast majority of transferable machinelearning models for physical properties lies the local nature of the underlying atomistic representation. This is usually constructed by considering the set of atomic coordinates that are included within spherical environments of a given radial cutoff around any arbitrary atomic center. \({ }^{7-9}\) The prediction of a given physical property is, therefore, formally decomposed in the sum of atom-centered
+contributions that effectively incorporate information associated with many-body structural correlations between atoms in each local environment. This locality assumption is very convenient, as it keeps at bay the dimensionality of the regression problem that is modeled by ML, and is physically justified by the nearsightedness principle of electronic matter. \({ }^{10}\) The major drawback is that it neglects long-range physical effects. Long-range electrostatic interactions, for example, are known to play a fundamental role in the description of ionic systems, \({ }^{11}\) macroscopically polarized interfaces, \({ }^{12}\) electrode surfaces, \({ }^{13}\) and nanoscience, in general. \({ }^{14}\) In all these cases, the pathologically slow decay \(\sim 1 / r\) of the Coulomb interaction makes it virtually impossible to reach convergence while using a local machine-learning scheme, which is reflected in an effective limit to the accuracy that can be reached by these models.
+
+The problem of incorporating long-range effects in electronic energy predictions is usually tackled by explicitly separating the local many-body contribution to the total energy from a classical electrostatic term approximated via pairwise Coulomb interactions. This
+can be done by baselining the model with relatively inexpensive calculations that incorporate electrostatic contributions, \({ }^{15,16}\) by direct subtraction of the Ewald-like electrostatic energy of the system, \({ }^{17,18}\) or by machine learning, in turn, the partial charges and the atomic multipoles that determine the long-range electrostatics. \({ }^{19-24}\) Other more sophisticated models, specifically designed for ionic systems, rely on a charge equilibration scheme. \({ }^{25,26}\)
+
+Beyond electrostatic energies, the breakdown of a local machine learning model is particularly pronounced when dealing with intrinsically nonlocal quantities such as the dielectric response of a condensed-phase medium. \({ }^{6}\) This nonlocality has to do both with the effect of the far-field electrostatics \({ }^{27}\) and with the topological quantum nature of the macroscopic polarization of an infinitely extended material. \({ }^{28,29}\) In this case, the problem can possibly be bypassed by adopting specific physical prescriptions. Examples of this can be found in Ref. 6, where the dielectric tensor \(\varepsilon_{\infty}\) of liquid water is learned indirectly by building a model for an effective molecular polarizability that is mapped to \(\varepsilon_{\infty}\) through the Clausius-Mossotti relationship. \({ }^{27}\) In the context of reproducing the autocorrelation function of the macroscopic polarization of liquid water, another strategy has recently been adopted, where the selected learning targets are the positions of the Wannier centers that are used to recast the electron density of the system into a set of point-charges. \({ }^{30}\)
+
+By and large, the learning models previously described tackle the problem of including long-range phenomena by making use of an ad hoc definition of the electrostatic energy, or dielectric response, in terms of local atomic quantities. Although successful, these kinds of approaches have the downside of being very system dependent and, as such, hardly transferable across systems that have a different nature, e.g., those related to charge transfer or to charge polarizability in (near)-metallic systems. \({ }^{31}\) Capturing long-range effects without any prior assumption on the nature of the learning target is a difficult task to accomplish with the methods currently available. Most of the approaches that have explicitly attempted to do so, such as Coulomb kernels, \({ }^{32}\) many-body tensor representations, \({ }^{33}\) or multiscale invariants, \({ }^{34}\) are built upon a global representation of the system rather than on an additive atom-centered model.
+
+Here, we propose a simple, yet elegant, solution to this problem, where the nonlocal character of the target property is incorporated in a symmetry-equivariant fashion into an atom-centered representation. In doing so, we construct a formalism that ensures that the resulting features exhibit the correct asymptotic dependence on the distribution of atoms in the far-field. This representation can be used straightforwardly with conventional, additive machine learning models. While the idea is very general, we present, as an example, a model that has an asymptotic behavior consistent with electrostatic interactions. We show that it can be used successfully to build a local machine learning model that accurately reproduces Coulomb interactions between point particles, the binding curves of charged organic fragments, and the electronic dielectric response of bulk water.
+
+\section*{II. LONG-DISTANCE EQUIVARIANT REPRESENTATION}
+
+Let us start from a formal definition of a ML representation of a structure \(\mathcal{A}\) as a decorated atom density, written in the position basis
+using the Dirac notation that was introduced in Ref. 35,
+\[
+\langle\mathbf{r} \mid \mathcal{A}\rangle=\sum_{i} g\left(\mathbf{r}-\mathbf{r}_{i}\right)\left|\alpha_{i}\right\rangle
+\]
+
+In Eq. (1), the index \(i\) runs over all the atoms in the structure, \(g\) is a Gaussian (or another localized function) peaked at each atom's position \(\mathbf{r}_{i}\), and \(\left|\alpha_{i}\right\rangle\) is an abstract vector that encodes the chemical nature of the atom. We now introduce an atom-density potential representation
+\[
+\left\langle\mathbf{r} \mid \mathcal{V}^{p}\right\rangle=\sum_{i}\left|\alpha_{i}\right\rangle \int \mathrm{d} \mathbf{r}^{\prime} \frac{g\left(\mathbf{r}^{\prime}-\mathbf{r}_{i}\right)}{\left|\mathbf{r}^{\prime}-\mathbf{r}\right|^{p}}
+\]
+
+The rationale for performing this transformation (which can be seen as the action of a linear integral operator on \(|\mathcal{A}\rangle\) ) is that whereas \(\langle\mathbf{r} \mid \mathcal{A}\rangle\) contains information only about the atoms in the vicinity of \(\mathbf{r},\left\langle\mathbf{r} \mid \mathcal{V}^{p}\right\rangle\) contains information about the position of all atoms in the structure, with a dependence on the position of the \(i\) th atom that decays asymptotically as \(\left|\mathbf{r}-\mathbf{r}_{i}\right|^{-p .36}\) The physical significance of \(\left|\mathcal{V}^{p}\right\rangle\) is obvious, if one considers typical forms of the interactions between atoms and molecules. For instance, if we had a single species and interpreted (1) as a charge density, \(\left\langle\mathbf{r} \mid \mathcal{V}^{1}\right\rangle\) would correspond to the electrostatic potential generated by such charge density. Analogously, the \(p=6\) case would provide the formally correct asymptotic limit of the energy per particle associated with dispersion interactions, \({ }^{37}\) which has inspired previous representations of local environments such as aSLATM. \({ }^{38}\)
+
+Proceeding as in Ref. 35, we can symmetrize the representation over the continuous translation group, taking a tensor product with the density representation to preserve structural information. One obtains the symmetrized ket
+\[
+\left\langle\mathbf{r} \mid \mathcal{A} \mathcal{V}^{p}\right\rangle_{\hat{t}}=\int \mathrm{d} \hat{t}\langle\mathbf{0}| \hat{t}|\mathcal{A}\rangle\langle\mathbf{r}| \hat{t}\left|\mathcal{V}^{p}\right\rangle=\sum_{j}\left|\alpha_{j}\right\rangle\left\langle\mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle
+\]
+where we introduced the shorthand notation (see the supplementary material for a full derivation),
+\[
+\left\langle\mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle=\sum_{i}\left|\alpha_{i}\right\rangle \int \mathrm{d} \mathbf{r}^{\prime} \frac{(g \star g)\left(\mathbf{r}^{\prime}-\left(\mathbf{r}_{i}-\mathbf{r}_{j}\right)\right)}{\left|\mathbf{r}^{\prime}-\mathbf{r}\right|^{p}}
+\]
+
+Modulo the redefinition of the atom density function as the autocorrelation of \(g,\left\langle\mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle\) is just the atom-density potential (2) computed using \(\mathbf{r}_{j}\) as the origin of the reference frame.
+
+Symmetrization over the translation group leads naturally to a structural representation that amounts to a sum over atom-centered descriptors-foreshadowing an additive property model built on such feature vector. For, for low values of the potential exponent \(p\), however, the integral in Eq. (4) introduces a substantially nonlocal behavior. The value of \(\left\langle\mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle\) in the vicinity of the central atom \(j\) can, in principle, depend on the position of atoms that are very far from it, even if one introduces a cutoff function that restricts the range of \(\left\langle\mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle\) around the central atom, and hence its complexity. One can then symmetrize further over the rotation group and over inversion symmetry. We will refer from now on to the resulting class of atomistic representations that capture long-range interactions based on the local value of an atom-density potential as the long-distance equivariant (LODE) framework. In the following, we will focus on the case of \(p=1\) that corresponds to electrostatic interactions.
+
+It is instructive to first consider the case of the first order spherical invariant and to take the limit in which the atom density is represented by Dirac- \(\delta\) distributions. It is easy to see that in this limit
+\[
+\left\langle\alpha \mathbf{r} \mid \mathcal{V}_{j}^{1}\right\rangle=\sum_{i \in \alpha} \frac{1}{\left|\mathbf{r}-\mathbf{r}_{i j}\right|}
+\]
+where \(\mathbf{r}_{i j}=\mathbf{r}_{i}-\mathbf{r}_{j}\). Integrating over the SO(3) group yields the first order invariant, \({ }^{39}\)
+\[
+\left\langle\alpha r \mid \mathcal{V}_{j}^{1(1)}\right\rangle=\int \mathrm{d} \hat{R}\langle\alpha r \hat{\mathbf{r}}| \hat{R}\left|\mathcal{V}_{j}^{1}\right\rangle=\sum_{i \in \alpha} \max \left[\frac{1}{r}, \frac{1}{r_{i j}}\right],
+\]
+that simply sums up \(1 / r_{i j}\) terms for all atoms outside the region over which the LODE representation is computed. Ignoring the contribution from the atoms within the cutoff, which can be better characterized by other atomic structure representations, a linear model built on these features is equivalent to a fixed point-charge electrostatic model. In other words, in this limit, the radial dependence of the regression weights is integrated out, and the weights associated with each pair of central atom type \(\alpha^{\prime}\) and neighbor type \(\alpha\) correspond to the product of the atomic charges \(q_{\alpha^{\prime}}\) and \(q_{\alpha}\).
+
+While this construction is very revealing, it is clear that its descriptive power is limited. Nonlinear kernel models can provide a more flexible functional form, but higher-order invariants provide a systematic way of incorporating more information on structural features. As in the SOAP framework for the atom density, \({ }^{3,35,40}\) the most convenient way to compute such invariants involves writing the scalar field associated with the species \(\alpha\) on a basis of radial functions \(R_{n}(r)\) and spherical harmonics \(Y_{m}^{l}(\hat{\mathbf{r}})\),
+\[
+\left\langle\alpha n l m \mid \mathcal{V}_{j}^{p}\right\rangle=\int \mathrm{d} \mathbf{r} R_{n}(r) Y_{m}^{l}(\hat{\mathbf{r}})^{\star}\left\langle\alpha \mathbf{r} \mid \mathcal{V}_{j}^{p}\right\rangle
+\]
+and then computing the appropriate spherically covariant combinations. For example, for rotationally invariant representations of order \(v=2\) (the form that is equivalent to the SOAP power spectrum and that we will use in the applications we present here),
+\[
+\left\langle\alpha n \alpha^{\prime} n^{\prime} l \mid \mathcal{V}_{j}^{p(2)}\right\rangle=\sum_{|m| \leq l} \frac{\left\langle\alpha n l m \mid \mathcal{V}_{j}^{p}\right\rangle^{\star}\left\langle\alpha^{\prime} n^{\prime} l m \mid \mathcal{V}_{j}^{p}\right\rangle}{\sqrt{2 l+1}}
+\]
+
+The extension to higher orders in spatial correlations \(v>2\) and/or to rotationally covariant representations of a given spherical-tensor order \(\lambda>0\) is straightforward based on the analogous density-based counterparts. \({ }^{6,35,41}\) Note that it is also possible to compute representations that combine different values of \(p\), and even \(p=0\), corresponding to the atom-density field. A systematic investigation of the various combinations, and their physical meaning, is left for future work.
+
+\section*{A. Efficient evaluation of the LODE representation}
+
+As discussed in the supplementary material, for molecules and clusters, the expansion (7) can be computed conveniently in real space by numerical integration on appropriate atom-centered grids. For a bulk system, described by a periodically repeated supercell, the long-range nature of the integral kernel that appears in (4) would make computing the expansion prohibitive. This is exactly the same problem one faces when evaluating electrostatic interactions in the
+condensed phase, and fortunately, it has long been solved, e.g., with the many techniques based on the use of a plane waves auxiliary basis. \({ }^{42,43}\) Consider the plane wave definition as \(\langle\mathbf{r} \mid \mathbf{k}\rangle=e^{\mathbf{i} \mathbf{k} \cdot \mathbf{r}}\), with \(\{\mathbf{k}\}\) representing a set of wavevectors that are compatible with the simulation box. The fact we start from a smooth, Gaussian atom density means that, in practice, one needs only a manageable number of plane waves. In particular, the width \(\sigma\) of the Gaussian density determines the minimum wavelength that should be introduced in the plane wave expansion so that \(\mathbf{k}\)-vectors only need to be generated within a sphere of radius \(k_{\text {max }}\) of the order of \(2 \pi / \sigma\). In order to evaluate the local potential projections, it is then enough to include the identity resolution \(\sum_{\mathbf{k}}|\mathbf{k}\rangle\langle\mathbf{k}|\) within the bracket of Eq. (7), i.e.,
+\[
+\begin{aligned}
+\left\langle\alpha n l m \mid \mathcal{V}_{j}^{p}\right\rangle & =\sum_{\mathbf{k}}\langle n l m \mid \mathbf{k}\rangle\left\langle\alpha \mathbf{k} \mid \mathcal{V}_{j}^{p}\right\rangle \\
+& =\sum_{\mathbf{k}}\left[4 \pi \mathrm{i}^{l} I_{n l}(k) Y_{l m}^{\star}(\hat{\mathbf{k}})\right]\left[\frac{1}{\Omega}\left(\sum_{i \in \alpha} e^{-\mathrm{i} \mathbf{k} \cdot \mathbf{r}_{i j}}\right) \frac{4 \pi}{k^{2}} e^{-\frac{k^{2} \sigma^{2}}{2}}\right],
+\end{aligned}
+\]
+where \(\Omega\) is the volume of the simulation box and \(k\) and \(\hat{\mathbf{k}}\) are the modulus and direction of the wavevector, respectively. As detailed in the supplementary material, \(\langle n l m \mid \mathbf{k}\rangle\) corresponds to the expansion in plane waves on the basis of the local environment representation and can be computed analytically once and for all if the radial functions are taken to be Gaussian type orbitals. \({ }^{44}\) Conversely, \(\left\langle\alpha \mathbf{k} \mid \mathcal{V}_{j}^{p}\right\rangle\) represents the Fourier components of the potential generated by the Gaussian density of element \(\alpha\) for the entire system and can be readily computed analytically. \({ }^{45}\) As a result, the geometric local nature of the representation of Eq. (9) is formally factorized from its system-dependent global character. It has not escaped our attention that Eq. (9) could also be used to compute efficiently the coefficients of the density expansion that enter, for instance, the SOAP framework. In the context of electrostatic interactions, one should note that the \(\mathbf{k}=0\) component can be safely excluded from the sum of Eq. (9). This is in fact equivalent to the application of a charge-neutrality constraint while solving the regression problem. Similarly, divergences in the potential for \(p>1\) can be eliminated by appropriately regularizing the \(1 / r^{p}\) divergence in reciprocal space.
+
+\section*{III. RESULTS}
+
+We now proceed to test the performance of the LODE representation in the context of predicting scalar electrostatic properties. In all cases, we use Gaussian process regression using simple polynomial kernels to emphasize the role of the features-as opposed to the regression scheme-on the performance of the model. Details of the parameters used in each example are reported in the supplementary material. We use the SOAP framework as the baseline for a comparison, which is appropriate given the close relation between the two approaches and the excellent performances demonstrated by SOAP-based models. It is important, however, to stress that any local model with a finite cutoff will exhibit a similar behavior as what we observe with SOAP. We also benchmark the combination of SOAP and LODE, which incorporates the advantages of both short-range and long-range models, realizing a kind of range-separated machine learning framework.
+
+\section*{A. A gas of point charges}
+
+We begin by considering a toy system made of randomly distributed point-charges in a cubic box that is infinitely repeated in the three dimensions using periodic boundary conditions. The number of positive charges is equal to the number of negative charges so that the system is overall neutral. To limit the amplitude of energy fluctuations, we discard configurations in which two charges are closer together than \(2.5 \AA\). Following these prescriptions, we generate a total of 2000 configurations, each of which contains 64 atoms in cubic boxes spanning a broad range of densities, with side lengths between 12 and \(20 \AA\). For each of these configurations, we compute the electrostatic energy using the Ewald method, as implemented in LAMMPS. \({ }^{46}\) Figure 1 compares the learning performance obtained using a local SOAP representation with different cutoffs to the one obtained by direct application of the LODE representation. In both cases, a Gaussian width of \(\sigma=1.0 \AA\) is used to construct the density distribution of Eq. (1).
+
+The figure clearly demonstrates the inefficiency of a local model when attempting to learn a property that is dominated by long-range effects. Given that the training set contains few configurations with atoms closer than \(3 \AA\), the model with \(r_{\text {cut }}=3 \AA\) is almost completely ineffective. Even increasing the cutoff up to \(9 \AA\), a SOAP model barely reaches an accuracy of about \(20 \%\) RMSE when using the maximum number of training structures. A linear model built using the \(\operatorname{LODE}(v=1)\) representation, on the other hand, yields an error below \(1 \%\) by using a handful of training points. This is not surprising since the functional form of Eq. (6) is formally equivalent to the fixed point-charges interaction as the Gaussian smearing entering the definition of LODE tends to zero ( \(\sigma \rightarrow 0\) ), which is reflected in the dramatic reduction of the error when halving the value of \(\sigma\). A LODE( \(v=2\) ) model, although initially less effective, possesses sufficient descriptive power to reach, and then overcome, the accuracy of the linear \(v=1, \sigma=1 \AA\) model. This simple example highlights how difficult it is to incorporate long-range physics with a conventional local structure representation and demonstrates that the LODE features can, on their own, be used as a very efficient description to predict the electrostatic energy of a system of fixed point charges.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/e94d0c9c-1d9e-4457-ab6b-b215695d45b4-5.jpg?height=397&width=818&top_left_y=1778&top_left_x=171}
+\captionsetup{labelformat=empty}
+\caption{FIG. 1. Learning curves for the electrostatic energy of an idealized random gas of point charges. The model is trained on 1500 randomly selected configurations and tested on other 500 independent configurations. (black full and dashed lines) Local ML (SOAP) results at environment cutoffs of 3,6 , and \(9 \AA\). (red lines) LODE \((v=1)\) results at an environment cutoff of \(2 \AA\), Gaussian smearing of 0.5 and \(1.0 \AA\), and \(\operatorname{LODE}(v=2)\) results with a cutoff of \(3 \AA\).}
+\end{figure}
+
+\section*{B. Binding curves of charged dimers}
+
+We now consider a more realistic scenario, namely, the problem of predicting the binding curves of a dataset of organic molecular dimers that carry an electric charge. We extract 661 different dimers containing \(\mathrm{H}, \mathrm{C}, \mathrm{N}\), and O atoms from the BioFragment Database (BFDb), \({ }^{47}\) where at least one of the two monomers in each dimer configuration has a net charge. This choice ensures that we focus the exercise on a problem for which permanent electrostatic interactions play a prominent role. Contrary to the NaCl toy system, however, one cannot expect that a fixed point-charge model would suffice to predict the binding curves. The dataset contains a multitude of chemical moieties, including neutral polar fragments and highly polarizable groups and provides a realistic assessment of how well a LODE model can perform in practice. For each of the 661 dimers, we consider 13 configurations where the reciprocal distance between the two monomers, defined as the distance between their geometric centers, spans an interval that ranges from a minimum of \(\sim 3 \AA\) to a maximum of \(\sim 8 \AA\). For each of these configurations, unrelaxed binding curves are computed at the density functional theory (DFT/B3LYP) level using the FHI-aims quantumchemistry package. \({ }^{48}\) The training dataset is defined by considering the binding curves of the first 600 dimers out of the total of 661. Predictions are tested on the remaining 61. We also include the isolated monomers in the training set so that the ML model has knowledge of the dissociation limit and compute a few additional reference energies at larger separations, which are, however, not used for training. SOAP and LODE representations are defined within spherical environments of \(r_{\text {cut }}=3.0 \AA\), while the Gaussian width of the density field is chosen to be \(\sigma=0.3\) and \(1.0 \AA\), respectively.
+
+Before carrying out the learning exercise, the reference DFT energies are baselined with respect to the monomer energies so that the model only has to reproduce the interaction energies between the two fragments. Upon this baselining, we find that optimal SOAP performances correspond to a RMSE \(\sim 20 \%\), whereas a suitable combination between SOAP and \(\operatorname{LODE}(v=2)\) allows us to bring the error down to \(\sim 4 \%\). This substantial improvement can be justified by the large discrepancy between the SOAP and SOAP + LODE accuracy in representing the interaction between the monomers at intermediate and large distances. To clarify the issue further, we plot in Fig. 2 the predicted binding curves of 6 test dimers against the reference DFT calculations. We observe that a SOAPbased local description is overall able to capture the short-range interactions with good accuracy. However, it becomes less and less effective as the distance between the monomers increases to the point of being completely blind to changes in interatomic distances when the environments cutoff distance is overcome. Note that the performance of the local model at small separations is degraded substantially by the inclusion of fully dissociated dimers in the training set because the representation cannot distinguish these configurations from those barely beyond the cutoff distance, which correspond to a nonzero value of the binding curve. The SOAP + LODE multiscale description, in contrast, can recognize the changes in separation between the monomers, leading to a smooth asymptotic behavior of the predicted binding curve. Although a linear model incorporating \(\operatorname{LODE}(v=1)\) allows us to halve the error made by SOAP down to \(\sim 10 \%\), it is not sufficiently expressive to achieve predictive accuracy-particularly for binding
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/e94d0c9c-1d9e-4457-ab6b-b215695d45b4-6.jpg?height=693&width=1565&top_left_y=294&top_left_x=249}
+\captionsetup{labelformat=empty}
+\caption{FIG. 2. Comparison of reference and predicted binding curves of six molecular dimers. (black dots) DFT reference calculations, (red lines) local SOAP predictions, (green lines) combined SOAP and LODE(1) predictions, and (blue lines) combined SOAP and LODE(2) predictions. Full lines and the shaded background represent the range of distances that is comparable to the geometries included in the training set. Dashed lines refer to predictions carried out in an extrapolative (long-range) regime. Panels (a) and (c) correspond to repulsive charge-charge interactions, panels (b) and (e) correspond to attractive charge-charge interactions, panel (d) corresponds to an attractive charge-dipole interaction, and panel (e) to repulsive charge-dipole interaction.}
+\end{figure}
+curves that involve neutral monomers that do not have a \(1 / r\) asymptotic behavior.
+
+This limitation can be addressed, on one hand, by increasing the body-order of the LODE descriptor to \(v=2\) and, on the other hand, by considering nonlinear kernels of the form \(\left(k_{i j}^{\mathrm{SOAP}}+k_{i j}^{\mathrm{LODE}(2)}\right)^{2}\). The resulting model is able to accurately predict the binding curves in the entire domain of distances, demonstrating its transferability across a vast spectrum of different chemical species and intermolecular configurations. This is particularly remarkable, as the SOAP \(+\operatorname{LODE}(v=2)\) model does not only predict accurately systems that are dominated by monopole electrostatics [Figs. 3(a)3(c) and 3(e)] but also systems in which only one of the molecules is charged, and so interactions involve polarization as well as chargedipole electrostatics [Figs. 3(d) and 3(f)]. In order to verify how a LODE-based model compares with a treatment of electrostatics based on machine-learning atomic partial charges, we performed a Mulliken population analysis to compute the partial charges of each isolated monomer included in the dataset and used these partial charges to compute the classical electrostatic interaction between the monomers. Asymptotically, this term exactly represents the permanent electrostatic interaction between the monomers, and it can, therefore, be used as an excellent baseline value for the binding curves. We find that, using this baselining, a local SOAP description can be used to reach a similar learning accuracy ( \(\sim 4 \%\) RMSE) to the one obtained through the SOAP \(+\operatorname{LODE}(v=2)\) multiscale approach. This result highlights the capability of the \(\operatorname{LODE}(v=2)\) representation to describe environment-dependent electrostatic effects beyond a model of fixed point charges. In fact, the performance of a SOAP model baselined on the electrostatic energy of fixed atomic charges equal to the mean of Mulliken partial charges
+is only marginally better than a purely local model. It is important to stress that a model based on LODE features cannot transparently describe the physics of polarization or charge transfer: the use of a composite SOAP + LODE kernel can describe how the environment of an atom affects its response to an external field, but there is no explicit component that can represent how the field generated by far-away atoms depends on their neighboring structure. Nevertheless, our tests show that a SOAP + LODE(2) representation can match the accuracy of a baseline built on self-consistently determined atomic charges. A summary of the regression performances for all the models discussed in this section is reported in the supplementary material.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/e94d0c9c-1d9e-4457-ab6b-b215695d45b4-6.jpg?height=407&width=807&top_left_y=1804&top_left_x=1082}
+\captionsetup{labelformat=empty}
+\caption{FIG. 3. Learning curves for the isotropic component of the dielectric response tensor \(\varepsilon_{\infty}\) of liquid water. The model is trained on up to 800 randomly selected configurations and tested on other 200 independent configurations. (Black full and dashed lines) SOAP results with \(r_{\text {cut }}=3,4\) and \(6 \AA\). (Red line) LODE results with \(r_{\text {cut }}=3 \AA\). (Blue line) combined results of SOAP and LODE, both using \(r_{\text {cut }}=3 \AA\).}
+\end{figure}
+
+\section*{C. Dielectric response of liquid water}
+
+As a final example, we revisit the problem of constructing a model of the infinite-frequency dielectric response tensor \(\varepsilon_{\infty}\) of liquid water. Details about the dataset generation and the computation of the dielectric tensors are reported in Ref. 6. In that work, we argued that a local model was inefficient in learning dielectric response because of its collective nature and showed that using the Clausius-Mossotti relationship to map \(\varepsilon_{\infty}\) to more local quantities was greatly improving the model. Here, LODE learning performances are only tested for the isotropic component of the tensor \(\varepsilon_{0} =\operatorname{Tr}\left[\varepsilon_{\infty}\right]\), which was shown to be most sensitive to the collective nature of the physics of dielectrics. Similarly to the case of the BFDb, we use a nonlinear kernel that combines SOAP representations computed using an optimal Gaussian width of \(\sigma=0.3 \AA\) and \(\operatorname{LODE}(v=2)\) features constructed starting from a Gaussian density of \(\sigma=1.0 \AA\). Figure 3 reports the results obtained when learning on 800 randomly selected structures and predicting on other 200 independent configurations.
+
+When relying upon an environment radius of \(r_{\text {cut }}=3 \AA\), LODE features perform much better than a local description. In this case, however, we observe a substantial improvement of the performance of SOAP when increasing the size of the local environments, eventually overcoming the accuracy of a LODE-based model with a radial cutoff of \(r_{\text {cut }}=6 \AA\). This might be a consequence of a less pronounced contribution of long-range tails, or-likely-of the fact that a cutoff of \(6 \AA\) encompasses the entirety of the supercell, and, therefore, effectively provides a complete description of the input space of this specific dataset. Optimal ML predictions can be obtained when combining the fine-grained local description of SOAP at \(r_{\text {cut }}=3 \AA\) with the coarse-grained and nonlocal description of LODE at the same cutoff. This behavior highlights the multiscale character of \(\varepsilon_{0}\), meaning that both the local many-body information and the long-range electrostatic effects need to be considered to get accurate predictions. It is also important to stress that a combination of SOAP and LODE could be beneficial in terms of computational performance. The formal similarity with methods to evaluate empirical potentials separating long-range and short-range interactions suggests that by choosing judiciously the local cutoff and the density smearing, it might be possible to evaluate SOAP + LODE at a lower cost than a SOAP model with a very large cutoff distance.
+
+\section*{IV. CONCLUSIONS}
+
+Machine-learning of atomic-scale properties that are dominated by short-range interactions has reached a stage of maturity, with a substantial consensus about the ingredients of a successful model. The most commonly used frameworks incorporate symmetries and physical principles into the representation of atomic configurations and achieve transferability by building additive property models. Furthermore, there is a growing understanding of the deep connections that exist between many of these methods, which is reflected in the fact that in most applications, they reach similar levels of accuracy. In this paper, we show how to extend these schemes in a way that makes it possible to incorporate long-range physics, without sacrificing the transferability of additive property models and the general applicability of rather abstract measures of atomic structure correlations. The crux lies in the definition of an atom-density potential that folds global information on the
+structure and composition of a system into a local representation that (1) has a physically motivated asymptotic behavior with interatomic separation and (2) can be efficiently computed in a symmetry-consistent fashion using similar ideas as those that underlie the SOAP framework and related approaches.
+
+We apply this long-distance equivariant (LODE) representation focusing on the version that is based on a Coulomb-like atomdensity potential. We demonstrate that, alone or in combination with SOAP, it outperforms local machine-learning methods in capturing long-range physics, for tasks that involve learning the electrostatic energy of a point-charge model, the binding curve of dimers of electrically charged organic fragments, and the dielectric constant of bulk water.
+
+These examples are little more than an assay that proves that this scheme can incorporate efficiently long-range information in atomistic machine learning. More work is needed to draw a systematic, formal connection between a ML model built on LODE features and long-range interatomic potentials, much like a connection has been shown between linear models built on density-based features and short-range many-body potentials, \({ }^{35,49-51}\) to explore the choice of other exponents in \(\left\langle\mathbf{r} \mid \mathcal{V}^{p}\right\rangle\) to improve models of dispersion and of long-range effects that do not imply a characteristic asymptotic behavior, to benchmark the performance of equivariant local features obtained by combining the expansion of the density and that of \(\left\langle\mathbf{r} \mid \mathcal{V}^{p}\right\rangle\), to verify whether the combination of SOAP and LODE can be used to improve the accuracy and the computational efficiency of existing ML force fields, and to attempt incorporating polarizable atoms physics into the LODE framework. Future investigations will address these and many other challenges and unearth the full potential of this physics-inspired approach to atomistic machine learning.
+
+\section*{SUPPLEMENTARY MATERIAL}
+
+The supplementary material contains details about the implementation of LODE representations in real and reciprocal space and benchmarks of the performance of different baselined models for the binding energy of charged dimers.
+
+\section*{ACKNOWLEDGMENTS}
+
+The authors would like to thank Clemence Corminboeuf and Gábor Csány for their insightful comments on an early version of the manuscript. M.C. and A.G. were supported by the European Research Council under the European Union's Horizon 2020 research and innovation programme (Grant Agreement No. 677013HBMAP) and the NCCR MARVEL, funded by the Swiss National Science Foundation. A.G. acknowledges funding by the MPG-EPFL Center for Molecular Nanoscience and Technology. The authors thank CSCS for providing CPU time under Project No. s843.
+
+\section*{REFERENCES}
+
+\footnotetext{
+\({ }^{1}\) J. Behler, Angew. Chem., Int. Ed. 56, 12828 (2017).
+\({ }^{2}\) J. Behler and M. Parrinello, Phys. Rev. Lett. 98, 146401 (2007).
+\({ }^{3}\) A. P. Bartók, R. Kondor, and G. Csányi, Phys. Rev. B 87, 184115 (2013).
+\({ }^{4}\) A. Shapeev, Multiscale Model. Simul. 14, 1153 (2016).
+\({ }^{5}\) A. Glielmo, P. Sollich, and A. De Vita, Phys. Rev. B 95, 214302 (2017).
+}
+\({ }^{6}\) A. Grisafi, D. M. Wilkins, G. Csányi, and M. Ceriotti, Phys. Rev. Lett. 120, 036002 (2018).
+\({ }^{7}\) A. P. Bartók, S. De, C. Poelking, N. Bernstein, J. R. Kermode, G. Csányi, and M. Ceriotti, Sci. Adv. 3, e1701816 (2017).
+\({ }^{8}\) S. Chmiela, A. Tkatchenko, H. E. Sauceda, I. Poltavsky, K. T. Schütt, and K.R. Müller, Sci. Adv. 3, e1603015 (2017).
+\({ }^{9}\) L. Zhang, J. Han, H. Wang, R. Car, and W. E, Phys. Rev. Lett. 120, 143001 (2018).
+\({ }^{10}\) E. Prodan and W. Kohn, Proc. Natl. Acad. Sci. U. S. A. 102, 11635 (2005).
+\({ }^{11}\) R. Kjellander, J. Chem. Phys. 148, 193701 (2018).
+\({ }^{12}\) Z. Guo, F. Ambrosio, W. Chen, P. Gono, and A. Pasquarello, Chem. Mater. 30, 94 (2018).
+\({ }^{13}\) R. Jorn, R. Kumar, D. P. Abraham, and G. A. Voth, J. Phys. Chem. C 117, 3747 (2013).
+\({ }^{14}\) R. H. French, V. A. Parsegian, R. Podgornik, R. F. Rajter, A. Jagota, J. Luo, D. Asthagiri, M. K. Chaudhury, Y.-m. Chiang, S. Granick, S. Kalinin, M. Kardar, R. Kjellander, D. C. Langreth, J. Lewis, S. Lustig, D. Wesolowski, J. S. Wettlaufer, W.-Y. Ching, M. Finnis, F. Houlihan, O. A. von Lilienfeld, C. J. van Oss, and T. Zemb, Rev. Mod. Phys. 82, 1887 (2010).
+\({ }^{15}\) R. Ramakrishnan, P. O. Dral, M. Rupp, and O. A. von Lilienfeld, J. Chem. Theory Comput. 11, 2087 (2015).
+\({ }^{16}\) M. Welborn, L. Cheng, and T. F. Miller, J. Chem. Theory Comput. 14, 4772 (2018).
+\({ }^{17}\) A. P. Bartók, M. C. Payne, R. Kondor, and G. Csányi, Phys. Rev. Lett. 104, 136403 (2010).
+\({ }^{18}\) Z. Deng, C. Chen, X.-G. Li, and S. P. Ong, npj Comput. Mater. 5, 75 (2019).
+\({ }^{19}\) N. Artrith, T. Morawietz, and J. Behler, Phys. Rev. B 83, 153101 (2011).
+\({ }^{20}\) T. Bereau, D. Andrienko, and O. A. von Lilienfeld, J. Chem. Theory Comput. 11, 3225 (2015).
+\({ }^{21}\) T. Bereau, R. A. DiStasio, A. Tkatchenko, and O. A. von Lilienfeld, J. Chem. Phys. 148, 241706 (2018).
+\({ }^{22}\) P. Bleiziffer, K. Schaller, and S. Riniker, J. Chem. Inf. Model. 58, 579 (2018).
+\({ }^{23}\) B. Nebgen, N. Lubbers, J. S. Smith, A. E. Sifain, A. Lokhov, O. Isayev, A. E. Roitberg, K. Barros, and S. Tretiak, J. Chem. Theory Comput. 14, 4687 (2018).
+\({ }^{24}\) K. Yao, J. E. Herr, D. Toth, R. Mckintyre, and J. Parkhill, Chem. Sci. 9, 2261 (2018).
+\({ }^{\mathbf{2 5}}\) S. A. Ghasemi, A. Hofstetter, S. Saha, and S. Goedecker, Phys. Rev. B 92, 045131 (2015).
+\({ }^{26}\) S. Faraji, S. A. Ghasemi, S. Rostami, R. Rasoulkhani, B. Schaefer, S. Goedecker, and M. Amsler, Phys. Rev. B 95, 104105 (2017).
+\({ }^{27}\) C. Böttcher, O. van Belle, P. Bordewijk, and A. Rip, Theory of Electric Polarization (Elsevier Scientific Publication Co., 1973).
+\({ }^{28}\) R. Resta, Rev. Mod. Phys. 66, 899 (1994).
+\({ }^{29}\) R. Resta, J. Phys.: Condens. Matter 22, 123201 (2010).
+\({ }^{30}\) L. Zhang, M. Chen, X. Wu, H. Wang, W. E, and R. Car, e-print arXiv:1906.11434 (2019).
+\({ }^{31}\) D. M. Wilkins, A. Grisafi, Y. Yang, K. U. Lao, R. A. DiStasio, and M. Ceriotti, Proc. Natl. Acad. Sci. U. S. A. 116, 3401 (2019).
+\({ }^{32}\) M. Rupp, A. Tkatchenko, K.-R. Müller, and O. A. von Lilienfeld, Phys. Rev. Lett. 108, 058301 (2012).
+\({ }^{33}\) H. Huo and M. Rupp, e-print arXiv:1704.06439 (2017).
+\({ }^{34}\) M. Hirn, S. Mallat, and N. Poilvert, Multiscale Model. Simul. 15, 827 (2017).
+\({ }^{35}\) M. J. Willatt, F. Musil, and M. Ceriotti, J. Chem. Phys. 150, 154110 (2019).
+\({ }^{36}\) Evaluation of the integral for \(p>1\) requires some form of regularization or short-distance cutoff to remove the singularity for \(\mathbf{r} \rightarrow \mathbf{r}_{i}\).
+\({ }^{37}\) R. Dreizler and E. Gross, Density Functional Theory: An Approach to the Quantum Many-Body Problem (Springer Berlin Heidelberg, 2012).
+\({ }^{38}\) B. Huang and O. A. von Lilienfeld, e-print arXiv:1707.04146 (2017).
+\({ }^{39}\) We indicate the order \(v\) invariant vector with the notation \(\left|\mathcal{V}_{j}^{p(v)}\right\rangle\), corresponding to the average over the rotation group of the vth tensor power of the translationally symmetrized vector.
+\({ }^{40}\) S. De, A. A. P. Bartók, G. Csányi, and M. Ceriotti, Phys. Chem. Chem. Phys. 18, 13754 (2016).
+\({ }^{41}\) A. Grisafi, D. M. Wilkins, M. J. Willatt, and M. Ceriotti, "Atomic-scale representation and statistical learning of tensorial properties," in Machine Learning in Chemistry, edited by E. O. Pyzer-Knapp and T. Laino (ACS Publications, 2019), pp. 1-21.
+\({ }^{42}\) P. P. Ewald, Ann. Phys. 369, 253 (1921).
+\({ }^{43}\) U. Essmann, L. Perera, M. L. Berkowitz, T. Darden, H. Lee, and L. G. Pedersen, J. Chem. Phys. 103, 8577 (1995).
+\({ }^{44}\) K. Cahill, Physical Mathematics (Cambridge University Press, 2013).
+\({ }^{45}\) M. P. Allen and D. J. Tildesley, Computer Simulation of Liquids (Clarendon Press, 1989).
+\({ }^{46}\) S. Plimpton, J. Comput. Phys. 117, 1 (1995).
+\({ }^{47}\) L. A. Burns, J. C. Faver, Z. Zheng, M. S. Marshall, D. G. Smith, K. Vanommeslaeghe, A. D. MacKerell, K. M. Merz, and C. D. Sherrill, J. Chem. Phys. 147, 161727 (2017).
+\({ }^{48}\) V. Blum, R. Gehrke, F. Hanke, P. Havu, V. Havu, X. Ren, K. Reuter, and M. Scheffler, Comput. Phys. Commun. 180, 2175 (2009).
+\({ }^{49}\) A. Glielmo, C. Zeni, and A. De Vita, Phys. Rev. B 97, 184307 (2018).
+\({ }^{\mathbf{5 0}}\) R. Drautz, Phys. Rev. B 99, 014104 (2019).
+\({ }^{51}\) S. Pozdnyakov, A. R. Oganov, A. Mazitov, T. Frolov, I. Kruglov, and E. Mazhnik, e-print arXiv:1910.07513 (2019).

@@ -1,0 +1,460 @@
+\title{
+A Universal Augmentation Framework for Long-Range Electrostatics in Machine Learning Interatomic Potentials
+}
+
+\author{
+Dongjin Kim, Xiaoyu Wang, Santiago Vargas, Peichen Zhong, Daniel S. King, Theo Jaffrelot Inizan, and Bingqing Cheng*
+}
+
+Cite This: J. Chem. Theory Comput. 2025, 21, 12709-12724
+Read Online
+Downloaded via FUDAN UNIV on March 15, 2026 at 21:19:56 (UTC). See https://pubs.acs.org/sharingguidelines for options on how to legitimately share published articles.
+
+\begin{abstract}
+Most current machine learning interatomic potentials (MLIPs) rely on short-range approximations, without explicit treatment of long-range electrostatics. To address this, we recently developed the Latent Ewald Summation (LES) method, which infers electrostatic interactions, polarization, and Born effective charges (BECs), just by learning from energy and force training data. Here, we present LES as a standalone library, compatible with any short-range MLIP, and demonstrate its integration with methods such as MACE, NequIP, Allegro, CACE, CHGNet, and UMA. We benchmark LES-enhanced models on distinct systems, including bulk water, polar dipeptides, and gold dimer adsorption on defective substrates, and show that LES not only captures
+![](https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-01.jpg?height=458&width=841&top_left_y=903&top_left_x=1095)
+correct electrostatics but also improves accuracy. Additionally, we scale LES to large and chemically diverse data by training MACELES-OFF on the SPICE set containing molecules and clusters, making a universal MLIP with electrostatics for organic systems, including biomolecules. MACELES-OFF is more accurate than its short-range counterpart (MACE-OFF) trained on the same data set, predicts dipoles and BECs reliably, and has better descriptions of bulk liquids. By enabling efficient long-range electrostatics without directly training on electrical properties, LES paves the way for electrostatic foundation MLIPs.
+\end{abstract}
+
+\section*{1. INTRODUCTION}
+
+The short-range approximation underlies most established machine learning interatomic potentials (MLIPs), ${ }^{1,2}$ as it enables the decomposition of total energy into individual contributions from local atomic environments, allowing efficient learning and inference. However, it is increasingly recognized that explicitly modeling long-range interactions is essential for systems with significant electrostatics and dielectric response, such as electrochemical interfaces, ${ }^{3}$ charged molecules, ${ }^{4,5}$ and ionic ${ }^{6}$ and polar materials. ${ }^{7}$
+
+While various approaches have been developed to incorporate long-range interactions into MLIPs, ${ }^{4,5,7-18}$ many require specialized training labels beyond energy and forces: the fourth-generation high-dimensional neural network potentials (4G-HDNNPs), ${ }^{9}$ the charge constraint ACE model, ${ }^{19}$ and $\mathrm{BAMBOO}^{12}$ are trained to reproduce atomic partial charges from reference quantum mechanical calculations; the self-consistent field neural network (SCFNN) ${ }^{10}$ and the deep potential long-range (DPLR) model ${ }^{6}$ learn from the positions of maximally localized Wannier centers (MLWCs) for insulating systems; and PhysNet, ${ }^{8}$ AIMNET2, ${ }^{20}$ and SO3LR ${ }^{21}$ utilize the dipole moments of gas-phase molecules. These additional data requirements limit the
+applicability of such methods to standard data sets containing only atomic positions, energies, forces, and sometimes stresses.
+
+By contrast, a few methods can learn long-range effects directly from standard data sets. $4,5,7,14,15,22$ These include message-passing schemes such as Ewald message passing ${ }^{15}$ and RANGE, ${ }^{18}$ and Coulomb-inspired long-range message-passing model FeNNix, ${ }^{23}$ and descriptor-based approaches like LODE $^{4,5,24}$ and the density-based long-range descriptor. ${ }^{22}$ However, in these methods the long-range contributions are not explicitly related to electrostatics due to charged atoms, making it difficult to extract electrical response properties.
+
+The Latent Ewald Summation (LES) framework ${ }^{25-27}$ overcomes these limitations by inferring atomic charges and the resulting long-range electrostatics directly from total energy and force data, without training on explicit charge labels. LES can thus be trained on any data set used for short-ranged
+
+Received: August 21, 2025
+Revised: November 26, 2025
+Accepted: December 2, 2025
+Published: December 10, 2025
+![](https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-01.jpg?height=220&width=155&top_left_y=2342&top_left_x=1777)
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-02.jpg?height=598&width=1118&top_left_y=204&top_left_x=495}
+\captionsetup{labelformat=empty}
+\caption{Figure 1. Schematic illustration of the LES integration with a short-ranged MLIP. The black box shows a standard MLIP workflow, where invariant or equivariant atomic features are computed, the invariant features $B_{i}$ are mapped to atomic energies $E_{i}$ and summed to yield the short-range energy $E^{\mathrm{sr}}$. The red box shows the LES module, which either predicts latent charges $q_{i}^{\text {les }}$ from atomic features $B_{i}$ or receives them from the host MLIP. Based on atomic positions $r_{i}$ and simulation cell size $L$, LES then computes the long-range energy $E^{\text {lr }}$ via Ewald summation or pairwise interactions. Optionally, LES also enables the computation of Born effective charges (BECs) as shown in the shaded red region. The blue arrows indicate autodifferentiation operations that are used to compute forces $F_{i}$ or BECs.}
+\end{figure}
+
+MLIPs. The inference of atomic charges not only enhances physical interpretability, but also enables the extraction of polarization $(P)$ and Born effective charges (BECs). ${ }^{27}$ These quantities allow computation of electrical response properties, including dielectric constants, ionic conductivities, ferroelectricity, and infrared (IR) spectra, and also enable MLIP-based molecular dynamics under applied electric fields.
+
+Here, we introduce LES as a universal electrostatics augmentation framework for short-ranged MLIPs. Unlike prior methods that are tightly integrated with specific architectures, LES is implemented as a standalone library that can be combined with a wide range of MLIP models. ${ }^{28-41}$ We provide open-source patches for several MLIP packages (MACE, ${ }^{33}$ NequIP, ${ }^{32}$ CACE, ${ }^{34}$ MatGL, ${ }^{36}$ Allegro, ${ }^{42}$ and UMA ${ }^{43}$ ), enabling seamless integration. We benchmark and compare LES-augmented models across diverse systems with the baseline short-ranged MLIPs, demonstrating improved accuracy and correct long-range electrostatics through the inference of BECs.
+
+Additionally, to demonstrate scalability to large, chemically diverse data sets, we train MACELES-OFF, an MLIP with explicit long-range electrostatics for organic molecules, using the SPICE data set. ${ }^{44}$ We find that MACELES-OFF outperforms its short-range counterpart (MACE-OFF ${ }^{45}$ ) and accurately predicts BECs, despite never being trained on charge or polarization data.
+
+\section*{2. ARCHITECTURE}
+
+The integration of the LES library with a host MLIP is illustrated in Figure 1. The black box outlines the standard workflow of a short-range MLIP: Given a molecular or periodic system, the base MLIP computes invariant and/or equivariant features for each atom $i$, based on either local atomic environment descriptors ${ }^{28,31,46}$ or message-passing architectures. ${ }^{47}$ The local invariant descriptors $B_{i}$ are mapped via a neural network to atomic energies $E_{i}$, which are then summed to obtain the total short-range energy $E^{\mathrm{sr}}=\sum_{i=1}^{N} E_{i}$.
+
+The red box in Figure 1 shows the LES module that is written in PyTorch, and the black arrows crossing the two
+boxes indicate communication between LES and the host MLIP. The LES module can either take the $B_{i}$ features to predict the latent charge of $i$ of each atom, $q_{i}^{\text {les }}$, via a neural network, or this charge prediction part can happen inside the MLIP and be passed to LES. These $q^{\text {les }}$ charges are then used to compute the long-range energy contribution $E^{\text {lr }}$. For periodic systems, the Ewald summation is used
+$$
+\begin{equation*}
+E^{\mathrm{lr}}=\frac{1}{2 \varepsilon_{0} V} \sum_{0<k<k_{\mathrm{c}}} \frac{1}{k^{2}} \mathrm{e}^{-\sigma^{2} k^{2} / 2}|S(\mathbf{k})|^{2} \tag{1}
+\end{equation*}
+$$
+with
+$$
+\begin{equation*}
+S(\mathbf{k})=\sum_{i=1}^{N} q_{i}^{\text {les }} \mathrm{e}^{i \mathbf{k} \cdot \mathbf{r}_{i}} \tag{2}
+\end{equation*}
+$$
+where $\varepsilon_{0}$ is the vacuum permittivity, $\mathbf{k}$ is the reciprocal wave vector determined by the periodic cell of the system $L, V$ is the cell volume, and $\sigma$ is a smearing factor (typically chosen to be 1 $\AA)$. For finite systems, the long-range energy is simply computed using the pairwise direct sum
+$$
+\begin{equation*}
+E^{\mathrm{lr}}=\frac{1}{2} \frac{1}{4 \pi \varepsilon_{0}} \sum_{i=1}^{N} \sum_{j=1}^{N}\left[1-\varphi\left(r_{i j}\right)\right] \frac{q_{i} q_{j}}{r_{i j}} \tag{3}
+\end{equation*}
+$$
+where the complementary error function $\varphi(r)=\operatorname{erfc}\left(\frac{r}{\sqrt{2} \sigma}\right)$.
+The $E^{\text {lr }}$ computed in LES is returned to the host MLIP package to be added to the total potential energy, $E=E^{\text {sr }}+E^{\text {lr }}$. Inside the host MLIP, forces and stresses are obtained through automatic differentiation of the total energy with respect to atomic positions and cell strain, respectively. The training procedure remains unchanged from the original MLIP package, using conventional loss functions for energy, forces, and stresses with user-defined weights.
+
+Optionally, as indicated by the red shaded area in Figure 1, LES can predict the Born effective charge tensors ( $Z_{\alpha \beta}^{*}$ ), where $\alpha$ and $\beta$ indicate Cartesian directions. The theory is described in ref 27 . In brief, for a finite system such as a gas-phase molecule, the BEC for atom $i$ is
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-03.jpg?height=870&width=1778&top_left_y=193&top_left_x=165}
+\captionsetup{labelformat=empty}
+\caption{Figure 2. Benchmark short-ranged and LES-augmented MLIPs for bulk water. (a) A representative snapshot of bulk water. (b) A parity plot comparing Born effective charge (BEC) tensors ( $Z^{*}$ ) for 100 bulk water from LES-augmented NequIP ( $r=4.5 \AA$ model, $n_{1}=3, l=2$ ) against RPBE-D3 DFT (ref 57). The main panel compares the diagonal elements of BEC ( $Z_{\alpha \alpha}^{*}$ ), and the inset shows the off-diagonal elements ( $Z_{\alpha \beta}^{*}$ with $\alpha \neq \beta)$. (c) The force root-mean-square errors (RMSEs) for baseline MLIPs (hollow bars), and with LES augmentation (solid bars). (d): The RMSEs for BEC predictions using LES and corresponding $R^{2}$ coefficients. The cutoff $r$, the number of layers $n_{1}$, the order of irreducible representations (rotation order) $l$ in message passing, and body order $\nu$ are indicated for each MLIP, as applicable.}
+\end{figure}
+$$
+\begin{equation*}
+Z_{i \alpha \beta}^{*}=\frac{\partial P_{\alpha}}{\partial r_{i \beta}} \tag{4}
+\end{equation*}
+$$
+where $P=\sum_{i=1}^{N} q_{i} \mathbf{r}_{i}$ is the polarization or the dipole moment. For a homogeneous bulk system under periodic boundary conditions (PBCs)
+$$
+\begin{equation*}
+Z_{i \alpha \beta}^{*}=\lim _{k \rightarrow 0} \Re\left[\exp \left(-i k r_{i \alpha}\right) \frac{\partial P_{\alpha}(k)}{\partial r_{i \beta}}\right] \tag{5}
+\end{equation*}
+$$
+with $P_{\alpha}(k)=\sum_{i=1}^{N} \sqrt{\varepsilon_{\infty}} \frac{q_{i}^{\text {les }}}{i k} \exp \left(i k r_{i \alpha}\right)$. In practice, we set $k$ to be the smallest reciprocal lattice vector, which is justified by the convergence tests using replicated cells presented in Methods. The high-frequency (electronic) relative permittivity $\varepsilon_{\infty}$ is an extra parameter for the system that can be easily obtained from experimental measurements, such as refractive index, or from density-functional perturbation theory (DFPT) calculations ${ }^{48}$ with frozen nuclei.
+
+Overall, the computation inside LES is light, and the communication between LES and the host MLIP is minimized. This design allows the LES augmentation to be implemented as a drop-in module that preserves the architecture, training, and inference workflows of the host MLIP package. As long as the host MLIP is implemented in PyTorch and produces peratom features used for local energy prediction, LES can be patched in with minimal effort.
+
+Thus, far, we have integrated LES into several representative MLIPs with distinct architectures, which we briefly describe here. NequIP ${ }^{32,49}$ is a message passing neural network (MPNN) with E(3)-equivariant convolutions, and it typically uses $3-5$ message passing layers with a perceptive field that can be as large as about $20 \AA$. Allegro ${ }^{42,49}$ is a scalable, strictly
+local many-body E (3)-equivariant deep neural network interatomic potential that circumvents the need for atomcentered message passing. The architecture learns scalar and tensorial features associated with directed edges in the atomic graph, enabling prediction of pairwise energies and subsequent reconstruction of per-atom energies. CACE ${ }^{34}$ is based on atomic cluster expansion (ACE). ${ }^{31}$ With one layer ( $n_{1}=1$ ), CACE is a local atomic descriptor-based model employing polynomial expansions of atomic clusters with body order $\nu$ in Cartesian coordinates. When $\nu=2$, three-body interactions are captured and (C)ACE has the same expressive power as earlier MLIP methods, including HDNNPs, ${ }^{28}$ Gaussian Approximation Potentials, ${ }^{29}$ and DeepMD. ${ }^{6}$ MACE ${ }^{33}$ is a MPNN that combines equivariant representations with the physically grounded structure of atomic cluster expansions. Thanks to the high-body-order messages, typically only one message passing layer on top of the base ACE layer is needed. MatGL is a graph deep learning library for materials modeling. ${ }^{36}$ Instead of using equivariant message passing, MatGL utilizes node and line graph representations to incorporate three-body interactions, such as M3GNet ${ }^{50}$ and CHGNet. ${ }^{51}$ UMA is an equivariant MPNN that was designed for large data sets such as OMol25 ${ }^{52}$ and OMat24. ${ }^{53}$ UMA extends several ideas from the preceding eSEN ${ }^{37}$ architecture, including the eSCN ${ }^{54}$ convolution, added envelope functions for smoothness, and nondiscrete node representations. UMA further includes Mixture of Linear Experts (MoLE) ${ }^{43}$ and global embedding of charge, spin, and task inputs. These models span a wide range of architectural paradigms-descriptor-based versus message-passing, invariant versus equivariant representa-tions-and demonstrate that LES can be universally incorporated without requiring architecture-specific modifications.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-04.jpg?height=870&width=1774&top_left_y=193&top_left_x=169}
+\captionsetup{labelformat=empty}
+\caption{Figure 3. Benchmark short-ranged and LES-augmented MLIPs for dipeptide. (a) A representative snapshot of a dipeptide conformer composed of arginine and aspartic acid from the SPICE data set. ${ }^{44}$ (b) A parity plot comparing Born effective charge (BEC) tensors for 55 dipeptide configurations ${ }^{44}$ from LES-augmented NequIP ( $r=4.5 \AA, n_{1}=3, l=2$ ) model against DFT. The main panel compares the diagonal elements of BEC ( $Z_{\alpha \alpha}^{*}$ ), and the inset shows the off-diagonal elements ( $Z_{\alpha \beta}^{*}$ with $\alpha \neq \beta$ ) ( $\mathrm{c}, \mathrm{d}$ ) the energy ( c ) and force ( d ) root-mean-square errors (RMSEs) for baseline MLIPs (hollow bars), and with LES augmentation (solid bars). (e) The RMSEs for BEC predictions using LES and corresponding $R^{2}$ coefficients. The cutoff $r$, the number of layers $n_{1}$, the order of irreducible representations (rotation order) $l$ of messages, and body order $\nu$ are indicated for each MLIP, as applicable.}
+\end{figure}
+
+\section*{3. BENCHMARKS}
+
+Here, we benchmark the performance of the aforementioned MLIP architectures (MACE, NequIP, CACE, CHGNet, and Allegro) with and without LES augmentation across three distinct systems, exemplifying the key challenges and practical importance of long-range electrostatic interactions. We also tested UMA and UMA-LES, but we found the baseline UMA model to perform substantially worse compared to the other baseline models despite exhaustive hyperparameter tuning, presumably because UMA is designed for large models fitted to large data sets and is not tuned for small data sets. In the bulk water system, while short-range interactions play an important role in the hydrogen-bond network and structural properties, ${ }^{55}$ long-range electrostatics are crucial for its dielectric response and interfacial behavior. ${ }^{56}$ The polar dipeptides represent gasphase systems with strong multipole interactions. ${ }^{44}$ The $\mathrm{Au}_{2}$ $\mathrm{MgO}(001)$ system involves the adsorption of metallic species on oxide substrates, where long-range interactions critically affect adsorption energy and charge redistribution, particularly upon substrate doping. ${ }^{9,26}$ In addition to standard metrics such as energy and force root-mean-square errors (RMSEs), we also evaluate the prediction of physical observables (BECs and adsorption energies) not in the training set.
+3.1. Water. We trained baseline and LES-augmented MLIPs using the energy and forces from the RPBE-D3 bulk water data set, ${ }^{57}$ which contains 604 train and 50 test configurations, each of 64 water molecules. The configurations were generated from MD trajectories at temperatures ranging from 270 to 420 K at water density under room temperature ( $\approx 997 \mathrm{~kg} / \mathrm{m}^{3}$ ), using an on-the-fly learning scheme. For testing LES, we also used the BEC values for an additional 100 snapshots of bulk water at experimental density and room
+temperature, ${ }^{57}$ computed also from the RPBE-D3 DFT. We assumed the experimental high-frequency permittivity ( $\epsilon_{\infty}=$ 1.78) of water in the prediction of BECs based on eq 5 .
+
+Figure 2c shows force RMSEs for each MLIP architecture, as the energy RMSE values remain uniformly low ( $0.1-0.3 \mathrm{meV}$ / atom) except for CHGNet ( $0.8-0.9 \mathrm{meV}$ /atom) and are thus omitted here. For the baseline MLIPs as indicated by the hollow bars in Figure 2c, we observe the usual trend typically expected from short-ranged models: Without message-passing layers ( $n_{1}=1$ ), increasing the cutoffs ( $r$ ) improves the accuracy (e.g., comparing CACE $\nu=2 r=4.5 \AA$ and $r=5.5 \AA$ models), and so does boosting the body order (CACE $r=4.5 \AA \nu=2$ and $\nu=3$ ). More layers ( $n_{1}$ ) effectively increase the perceptive field of the short-ranged MLIPs and reduce the errors, for both equivariant MPNNs (MACE and NequIP) and the invariant CHGNet. Increasing the rotation order (l) in E(3) equivariant representations of messages also helps the accuracy, as seen in MACE, NequIP, and Allegro models.
+
+The solid bars in Figure 2c show the force RMSEs for the LES-augmented models. Comparing the solid bars with the hollow ones, LES reduces the errors for all models, while the extent of improvement is somewhat dependent on the architecture of the short-ranged baseline. For this bulk water data set, LES benefits most of the MLIPs with a smaller effective perceptive field. That is, the MACE and the CACE models without message-passing ( $n_{1}=1$ ) see the largest force error reductions, and the NequIP and CHGNet with several message-passing layers have modest reductions. Similarly, the nonmessage-passing architecture Allegro also shows a meaningfully large reduction, consistent with this trend, while its number of layers ( $n_{1}$ ) corresponds to the body order (e.g., $n_{1}=$ 3 represents five-body tensor features) rather than messagepassing depth. The other hyperparameters of the base MLIPs,
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-05.jpg?height=922&width=1774&top_left_y=195&top_left_x=167}
+\captionsetup{labelformat=empty}
+\caption{Figure 4. Benchmark short-ranged and LES-augmented MLIPs for $\mathrm{Au}_{2}$ on $\mathrm{MgO}(001)$. (a) Representative configurations for wetting (top) or nonwetting (bottom) $\mathrm{Au}_{2}$ adsorbed on doped (top) or undoped (bottom) $\mathrm{MgO}(001)$ surface. (b,c) The energy (b) and force (c) root-meansquare errors (RMSEs) for baseline MLIPs (hollow bars), and with LES augmentation (solid bars). (d) The energy difference ( $E_{\text {wetting }}-E_{\text {non-wetting }}$ ) in eV for doped (top) and undoped (bottom) substrates. Baseline (hollow bars) and LES-augmented models (solid bars) compared with reference DFT results (gray bars and horizontal dashed lines). The cutoff $r$, the number of layers $n_{\mathrm{l}}$, the order of irreducible representations (rotation order) $l$ of messages, and body order $\nu$ are indicated for each MLIP, as applicable.}
+\end{figure}
+$\nu$ and $l$, do not seem to have a strong influence on the efficacy of LES.
+
+Moreover, we ask the question: Is LES able to capture the correct electrostatic interactions and predict physical atomic charges? This is answered via the BEC benchmark shown in Figure 2d, which presents the RMSEs of the BECs compared to the DFT calculated values. Importantly, for all MLIPs, regardless of model architecture, hyperparameters, or effective cutoffs, LES can accurately predict the BECs. Figure 2b shows the parity plot for one of the models, which illustrates the quality of the agreement with the DFT ground truth. We do not find any obvious correlation between the accuracy of the BEC prediction and the baseline MLIP architecture, nor with the force RMSE errors. However, there is a weak inverse correlation with the reduction in force RMSE errors (see Figure 11 in Methods). This suggests that LES is a robust approach to infer BECs, regardless of the underlying model performance. The BECs are not only sensitive indicators of the correct electrostatics, but are also useful in atomistic simulations for electrical response properties. For instance, in ref 27 , we showed that such predictions of BECs can enable accurate prediction of water IR spectra under zero or finite external electric fields.
+3.2. Dipeptides. We trained baseline and LES-augmented MLIPs using energy and forces from a data set of polar dipeptide conformers selected from SPICE, ${ }^{26,44}$ which contains 550 configurations ( $90 \%$ train/ $10 \%$ test split) For testing LES, we computed BEC values at the $\omega$ B97-mD3(BJ)/Def2SVP level of theory. As these systems are in a vacuum, the highfrequency permittivity is $\epsilon_{\infty}=1$, and one can use eq 4 directly when predicting BEC s using LES .
+
+Figure 3c,d show the energy and force RMSE values for each MLIP architecture. For the baseline MLIPs indicated by the hollow bars, we again observe the usual trends that increasing body order (CACE $r=4.5 \AA \nu=2$ and $\nu=3$ ), and the number of layers (CHGNet $r=4.5 \AA n_{1}=3$ and $n_{1}=4$ ) lead to improved accuracy. Additionally, increasing $l$ improves MACE, NequIP, and Allegro models.
+
+The solid bars in Figure 3c,d represent the energy and force RMSEs for the LES-augmented models. Comparing the solid and hollow bars, we find again that LES augmentation consistently reduces both energy and force prediction errors across all baseline MLIPs, regardless of their specifics: hyperparameters such as $r$ and $\nu$ do not appear to strongly influence the effectiveness of LES, nor do the perceptive fields of baseline models. This implies that LES provides an improved molecular representation on top of message passing.
+
+As is seen in Figure 3e, LES-augmented models all show excellent agreement with DFT reference values for BEC predictions (up to $R^{2}=0.97$ ). As an illustration, Figure 3b shows a parity plot. We also investigated whether the quality of the BEC predictions is correlated with force RMSE values or RMSE reduction, as shown in Figure 11b,d. As is seen, there are no clear-cut correlations between BEC and force or energy RMSE improvement, showing that LES remains a robust way to compute charge regardless of the relative performance of the baseline model. As shown in our previous study, the ability of LES to capture electrostatic interactions also extends to dipole moments, quadrupole moments, and IR spectra. ${ }^{26}$ Electrostatics strongly affect peptide backbone conformations in dipeptides, ${ }^{58}$ which suggests LES augmentation can be helpful for protein structure, folding, binding, and other biological functions.
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-06.jpg?height=639&width=1131&top_left_y=202&top_left_x=488}
+\captionsetup{labelformat=empty}
+\caption{Figure 5. Comparison of test set root-mean-square errors (RMSEs) for energy and forces of the MACE-OFF23 (S, M, L) and MACELES-OFF models for organic molecules, with the underlying DFT reference values. ${ }^{45}$ Exact values are provided in Table 3.}
+\end{figure}
+3.3. $\mathbf{A u}_{\mathbf{2}}$ on $\mathbf{M g O}(\mathbf{0 0 1})$. We trained baseline and LESaugmented MLIPs using energy and forces from an $\mathrm{Au}_{2}- \mathrm{MgO}(001)$ data set from Ko et al., ${ }^{9}$ consisting of 5000 configurations ( $90 \%$ train $/ 10 \%$ test split). The configurations consist of a gold dimer adsorbed on an $\mathrm{MgO}(001)$ surface with two adsorption geometries: an upright nonwetting and a parallel wetting configuration. In some configurations, three Al dopant atoms were introduced in the fifth subsurface layer (Figure 4a). Despite their distance of over $10 \AA$ away from the gold dimer, the dopant atoms significantly influence the electronic structure and the energetics between the wetting and nonwetting configurations.
+
+Figure 4b,c present the energy and force RMSEs for each MLIP architecture. For all baseline MLIP models indicated by the hollow bars, increasing the perceptive field by either raising the cutoff radius or increasing the number of layers leads to significant improvements in both energy and force accuracy, for both the equivariant MPNNs (MACE, NequIP) and the invariant CHGNet. When the perceptive field is smaller than the distance between the dopants and the adsorbates, the MLIPs perform poorly.
+
+The solid bars in Figure 4b,c demonstrate that the LES augmentation rather consistently improves energy and force predictions across all models, with particularly large gains for models with a smaller perceptive field. For example, the force RMSE reductions for MACE $r=5.5 \AA n_{1}=1$, NequIP $r=4 \AA n_{1}=2 l=1$, CHGNet $r=4.5 \AA n_{1}=1$, CACE $r=5.5 \AA n_{1}=1 \nu$ = 3, CACE $r=5.5 \AA n_{1}=1 \nu=2$, and Allegro $r=5.5 \AA n_{1}=2 l =1$ are about $80 \%$.
+
+Figure 4d shows the prediction of a physical observable, the energy difference ( $E_{\text {wetting }}-E_{\text {non-wetting }}$ ) between wetting and nonwetting configurations for doped and undoped substrates. This is computed by performing geometry optimizations of the positions of the gold atoms, with the substrate fixed, for both doped and undoped surfaces. For the undoped MgO substrate, the nonwetting configuration is more stable, while the Aldoping stabilizes the wetting configuration. As shown, the baseline MLIPs with small perceptive fields of less than about 9 Å struggle to distinguish between undoped and Al-doped structures. Either increasing the perceptive field or adding LES significantly enhances the accuracy of predicting this energy difference, closely matching DFT reference values of 934.8 meV for undoped and -66.9 meV for doped surfaces. Thus,
+although LES may not further improve the prediction for already highly accurate models, it assures that long-range effects associated with doping and adsorption are captured in all cases.
+
+Notably, the CACE model with three-body interactions ( $r= 5.5 \AA n_{1}=1 \nu=2$ ) has the same body order and expressiveness as the HDNNPs. ${ }^{28}$ Ko et al. ${ }^{9}$ showed that the SR HDNNP fails to distinguish the energetics of the doped and undoped systems, while the 4G-HDNNP, which was trained on DFT partial charges and uses a charge equilibration scheme, can reproduce the physical behavior. Our observation is consistent with theirs, except that no training on DFT charges nor charge equilibration is needed.
+
+\section*{4. A LONG-RANGE TRANSFERABLE MLIP FOR ORGANICS}
+
+In the above, we benchmarked LES on specific systems and relatively small data sets. Here, we explore whether the longrange correction scheme works at scale, for large and chemically diverse data sets. This is not only relevant for validating the scaling capability of the method, but is practically important for constructing emerging "foundation models" ${ }^{59}$ that work across the periodic table.
+
+The MACE-OFF23 (small (S), medium (M), and large $(\mathrm{L}))^{45}$ is a recent set of short-range transferable machine learning force fields for organic molecules, which are based on the MACE architecture and trained on finite organic systems: small molecules of up to 50 atoms from about $85 \%$ of the SPICE data set version $1^{44}$ with a neutral formal charge and containing ten chemical elements H, C, N, O, F, P, S, Cl, Br, and I , as well as $50-90$ atom molecules randomly selected from the QMugs data set. ${ }^{60}$ The data set contains the energies and forces computed at the $\omega$ B97M-D3(BJ)/def2-TZVPPD DFT level of accuracy. We trained the MACELES-OFF model based on the same training/validation split of MACE-OFF23.
+
+We note that our main purpose here is to showcase the effect of the LES augmentation compared to the baseline model, rather than fitting the most accurate model possible. The MACELES-OFF model we trained used hyperparameters of cutoff radius $r=4.5 \AA$, chemical channels $k=192$, the order of the equivariant features $l=1$, and float32 precision. The comparison of these hyperparameters with the original MACEOFF23 models is presented in Table 2. Compared to the
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-07.jpg?height=757&width=1715&top_left_y=202&top_left_x=195}
+\captionsetup{labelformat=empty}
+\caption{Figure 6. Assessment of dipole moments and Born effective charges ( BECs ) predicted by the MACELES-OFF for subsets of the MACE-OFF test set. (a) Representative configurations from each subset of the MACE-OFF test set. (b) Parity plots comparing predicted dipole moment components ( $\mu$ ) against reference DFT values. (c) Parity plots comparing predicted BEC tensors against DFT reference. Data points are colored by atomic number, with diagonal BEC components ( $Z_{\alpha \alpha}^{*}$ ) shown in the main plots and off-diagonal ( $Z_{\alpha \beta}^{*}$ ) components shown in inset plots.}
+\end{figure}
+
+MACE-OFF23(S), the MACELES-OFF has the same $r$ but higher $k$ and $l$. Thanks to its lower precision as well as little overhead from LES, the MACELES-OFF is about as fast as the MACE-OFF23(S), and much faster than the MACE-OFF23(M) and MACE-OFF23(L) models, as shown in the timing benchmark in Figure 13 of Methods.
+
+In Figure 5, we compare the RMSE values for energy and force for the three original MACE-OFF23 (S, M, L) and MACELES-OFF, on different subsets of test configurations (representative snapshots in Figure 6a). Overall, the MACELES-OFF shows RMSEs comparable to the MACEOFF23(L) that uses a larger cutoff $r=5 \AA$ and higher $l=2$ (see Table 2). Compared to the MACE-OFF23(S) model that shares the same cutoff, the errors are about halved. Among all the subsets, the MACELES-OFF shows particularly better accuracy for water clusters, solvated amino acids, and dipeptides, which may indicate that the model is well-suited for simulating biological systems.
+
+To test whether LES is able to extract the correct electrostatics, we investigate if the model is able to infer the dipole moments $\mu$ (same as the polarization of finite systems) and BECs. For about 50 configurations in each of the test subsets, we calculated reference BECs and dipole moments at the $\omega$ B97m-D3(BJ)/Def2SVP level of theory (calculation details in Methods). Figure 6b shows good agreement between the reference and the predicted dipole moments $\mu$. Figure 6c compares the DFT and the BECs computed by LES via taking the derivative of the predicted $\mu$ as in eq 4, showing broad agreement in both the on- and off-diagonal components over the broad range of elements and chemical species contained in the test set. These agreements thus demonstrate that accurate inference of dipole moments and BECs is achievable in foundation-like models trained only on energy and forces.
+4.1. Water. A key requirement for organic force fields is the accurate description of bulk water. Note that the training set only contains small, nonperiodic water clusters; the application to the simulations of bulk liquid is in itself a generalization task.
+
+We performed equilibrium NVT molecular dynamics simulations of bulk water at 300 K and experimental density, with further details provided in the Methods section. Figure 7a demonstrates the capability of the MACELES-OFF model to accurately capture the radial distribution function (RDF) of water, and shows a result comparable to those from the previous MACE-OFF23 models (S, M) and experimental measurements. ${ }^{61}$
+
+We computed an IR spectrum from the MD trajectory using predicted BECs, as illustrated in Figure 7b, with additional details given in the Methods section. For comparison, we also included the IR spectrum predicted using MACE-OFF23(S), computed from the autocorrelation function of the time derivative of the total dipole moment predicted using a separate MACE-OFF23- $\mu$ model along classical MD trajectories, ${ }^{45}$ as well as experimental results. ${ }^{62}$ The intramolecular bending mode $\left(\approx 1640 \mathrm{~cm}^{-1}\right)$, the intermolecular low-frequency libration band ( $\approx 650 \mathrm{~cm}^{-1}$ ), and the hydrogen-bond translational stretching mode ( $\approx 200 \mathrm{~cm}^{-1}$ ) are all wellcaptured by the MACELES-OFF, whereas the MACEOFF23(S) classical MD result reproduces the band shapes but not the intensities. The predicted intramolecular vibrational mode ( OH stretching band $\approx 3400 \mathrm{~cm}^{-1}$ ) is blue-shifted relative to the experiment, which is due to our use of classical MD without nuclear quantum effects (NQEs). ${ }^{63}$ To illustrate the impact of NQEs, we additionally show the IR spectrum obtained from the MACE-OFF23(S) with path-integral MD (PIMD) simulations within the PIGS approximation, ${ }^{64}$ as reported in ref 45 . Incorporating NQEs brings the MACEOFF23(S) frequencies into close agreement with experiment, especially by correcting the blue shift in the OH stretching region.
+
+We simulated the temperature dependence of liquid water density based on NPT simulations conducted at 1 atm , as shown in Figure 7c. Comparative analysis demonstrates that MACELES-OFF achieves superior density prediction, exhibiting about $10 \%$ overestimation of liquid water density
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-08.jpg?height=1201&width=612&top_left_y=199&top_left_x=288}
+\captionsetup{labelformat=empty}
+\caption{Figure 7. Bulk water properties predicted by the MACELES-OFF compared to the MACE-OFF23 and experimental data. (a) OxygenOxygen radial distribution functions in bulk water from the MACEOFF23 models (S, M) and the MACELES-OFF model compared with experimental value (ref 61). (b) The infrared (IR) absorption spectra of bulk liquid water computed using the MACELES-OFF (red). For comparison, we also show the experimental IR spectrum ${ }^{62}$ (gray shading), the classical MD result from MACE-OFF23(S) (solid blue), and the result with quantum nuclear corrections to MACEOFF23(S) (dashed blue), as reported in ref 45. (c) Density isobar of liquid water at 1 atm . Both the MACELES-OFF (red circles) and the MACE-OFF23(M) (green squares) models show similar isobaric density characteristics for liquid water at 1 atm , with experimental data ${ }^{65}$ included for reference.}
+\end{figure}
+compared to the original $18 \%$ overestimation reported by the MACE-OFF23(M) model. ${ }^{45}$ This improvement highlights the importance of long-range dipole-dipole interactions in predicting bulk properties such as density. We also note that the MACE-OFF model can predict water density closer to experimental values by further increasing the cutoff to $6 \AA$, which corresponds to a perceptive field of $12 \AA$.
+4.2. Molecular Liquids. We investigated the performance of MACELES-OFF in predicting condensed-phase properties such as densities ( $\rho_{\text {liq }}$ ) and enthalpy of vaporization ( $\Delta_{\text {vap }} H$ ) under ambient conditions ( 298 K and 1 atm ), as presented in Figure 8. Reproducing such properties was observed to present challenges for short-ranged MLIPs. ${ }^{45,67}$ We selected a comprehensive test set of 39 molecular liquids with boiling points greater than 320 K , referencing the MACEOFF benchmark. ${ }^{45}$ This set encompasses diverse chemical classes highly relevant to chemistry and biology, including alcohols,
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-08.jpg?height=1118&width=583&top_left_y=198&top_left_x=1220}
+\captionsetup{labelformat=empty}
+\caption{Figure 8. Predicted densities and heats of vaporization for diverse molecular liquids under ambient conditions ( 298 K and 1 atm ) using the MACELES-OFF. (a) Density ( $\rho_{\text {liq }}$ ) predictions from the MACELES-OFF (red circles) and the MACE-OFF23(M) (green squares), compared with experimental values. ${ }^{66}$ (b) Heats of vaporization ( $\Delta_{\text {vap }} H$ ) predictions from the MACELES-OFF (red circles) and the MACE-OFF23(M) (green squares), compared with experimental values. ${ }^{66}$}
+\end{figure}
+amines, amides, ethers, aromatics/hydrocarbons, ketones/ aldehydes, thiols/sulfides, and other functionalized compounds.
+
+As shown in Figure 8, the MACELES-OFF model demonstrates superior accuracy in predicting liquid density and enthalpy of vaporization compared to the MACEOFF23(M). For liquid density, the MACELES-OFF achieves an MAE of $0.04 \mathrm{~g} / \mathrm{cm}^{3}$ and RMSE of $0.05 \mathrm{~g} / \mathrm{cm}^{3}$, which represents approximately half the error values of the MACEOFF23(M) (MAE: $0.09 \mathrm{~g} / \mathrm{cm}^{3}$, RMSE: $0.15 \mathrm{~g} / \mathrm{cm}^{3}$ ). These low error values, coupled with a stronger correlation with experimental data ( $R=0.96$ ) compared to the MACEOFF23(M) model ( $R=0.89$ ), indicate that the MACELESOFF accurately learned both short- and long-range intermolecular interactions.
+
+Similarly, regarding the calculations of $\Delta_{\text {vap }} H$, the MACELES-OFF model yields a MAE of $1.32 \mathrm{kcal} / \mathrm{mol}$ and RMSE of $1.62 \mathrm{kcal} / \mathrm{mol}$ with a correlation of $R=0.84$ and thus outperforms the MACE-OFF23(M) model that has an MAE $(2.18 \mathrm{kcal} / \mathrm{mol})$ and RMSE ( $2.53 \mathrm{kcal} / \mathrm{mol}$ ) with $R=0.87$. Moreover, while the MACE-OFF23(M) model exhibits a systematic $\Delta_{\text {vap }} H$ offset of about $2 \mathrm{kcal} / \mathrm{mol}$, which is largely eliminated in the MACELES-OFF prediction.
+4.3. Simulations of Biological Molecules. To probe the influence of the long-range interactions in MACELES-OFF on
+protein-protein and protein-water interactions, we studied two biological systems: solvated alanine dipeptide and the 1FSV protein. ${ }^{68}$
+
+For the alanine dipeptide in water, we computed the free energy surface (FES) using well-tempered metadynamics ${ }^{69}$ simulations in explicit solvent (see Methods Section), as shown in Figure 9. The AMBER ff99SB-ILDN force field
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-09.jpg?height=909&width=614&top_left_y=506&top_left_x=286}
+\captionsetup{labelformat=empty}
+\caption{Figure 9. Torsional free energy surfaces (FES) of solvated alanine dipeptide computed at 310 K using different potentials. (a) FES based on AMBER ff99SB/TIP3P. (b) FES based on MACELES-OFF. Four local minima are distinguished in the landscape and they correspond to distinct conformations defined by the central $\phi$ and $\psi$ backbone angles: antiparallel $\beta$-sheet ( $\mathrm{a} \beta$ ), polyproline II (PPII), right-handed $\alpha$-helix $(\alpha-\mathrm{H}(\mathrm{R}))$, and left-handed $\alpha$-helix structures $(\alpha-\mathrm{H}(\mathrm{L}))$. In addition, compared to AMBER ff99SB/TIP3P, MACELES-OFF identifies another local minimum that corresponds to the righthanded $\alpha$-helix region $\left(\alpha_{\mathrm{D}}\right)$.}
+\end{figure}
+exhibits an FES with four local minima, consistent with previous studies: ${ }^{23,70}$ antiparallel $\beta$-sheet ( $\mathrm{a} \beta$ ), polyproline II (PPII), right-handed $\alpha$-helix $(\alpha-\mathrm{H}(\mathrm{R}))$, and left-handed $\alpha$ helix $(\alpha-\mathrm{H}(\mathrm{L}))$. In comparison, MACELES-OFF displays the deepest minimum at $\alpha-\mathrm{H}(\mathrm{R})$. The free energy difference between $\alpha-\mathrm{H}(\mathrm{R})$ and the second minimum ( $\mathrm{a} \beta$ ) is approximately $1.5 \mathrm{kcal} / \mathrm{mol}$, while the difference with PPII is around $3.0 \mathrm{kcal} / \mathrm{mol}$, consistent with the relative ordering of minima and similar to the relative free energies reported for MP2/cc-pVTZ level with implicit solvent. ${ }^{71}$ Compared to the recent FENNIX-Bio1 model ${ }^{23}$ that includes long-range interactions, nuclear quantum effects, and is trained on the high-level SPICE2(+)-ccECP data set, MACELES-OFF yields a very similar overall shape of the FES. Interestingly, the righthanded $\alpha$-helix region ( $\alpha_{D}$ in Figure 9b), does not appear as a clear minimum but rather as a shallow valley on the FES by both AMBER ff99SB-ILDN or AMBER99, ${ }^{23}$ likely due to insufficient treatment of water-protein interactions, an issue well tackled by MACELES-OFF.
+
+For the 1 FSV protein, we performed 2 ns MD simulations in vacuum for all three models, starting from the crystallographic PDB structure. The 1FSV protein poses a significant challenge due to its 10 positively and 5 negatively charged groups. As shown in Figure 10, both MACELES-OFF and MACE-
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-09.jpg?height=555&width=839&top_left_y=430&top_left_x=1095}
+\captionsetup{labelformat=empty}
+\caption{Figure 10. Root-mean-square deviation (RMSD) of the 1FSV protein during a 2 ns gas-phase NVT MD simulation at 310 K . Time evolution of RMSD and protein structures compared to the initial PDB structure for AMBER ff99SB (blue), MACEOFF-24(M) (orange), and MACELES-OFF (red).}
+\end{figure}
+$\mathrm{OFF24(M)}$ began folding the protein into a more compact conformation, characteristic of gas-phase behavior. However, their trajectories diverged over time. MACELES-OFF exhibited more stable dynamics, remaining close to AMBER ff99SB-ILDN, ${ }^{72}$ with a root-mean-square deviation (RMSD) of 5.14 Å with respect to the 1FSV PDB structure, just 0.085 Å lower than AMBER's $5.22 \AA$. In contrast, MACE-OFF24(M) showed continued RMSD drift and overcompaction, reaching $4.43 \AA$.
+
+Further structural analysis confirmed these trends through the calculation of salt bridges and hydrogen bond networks. MACE-OFF24(M) exhibited the highest number of salt bridges (159, $+35 \%$ vs PDB) and hydrogen bonds (286, $+55 \%$ ), indicating an overcollapsed structure. By comparison, MACELES-OFF formed 149 salt bridges and 263 hydrogen bonds, values more consistent with AMBER (143 and 258, respectively).
+
+Overall, the results above suggest that MACELES-OFF can provide a good description of the FES of a small peptide solvated in water. Comparing MACELES-OFF and MACEOFF for the folding of 1FSV in vacuum, long-range electrostatics play a critical role in governing the dynamics and structural stability of the protein. These findings underscore the importance of including long-range interactions in simulations of biomolecular systems.
+
+\section*{5. DISCUSSION}
+
+We present LES as a "universal" augmentation framework for adding long-range electrostatics to short-range MLIPs. It is universal in three ways: First, LES can work together with many short-ranged MLIPs in an architecture-agnostic way as long as there are local invariant features for atoms. We patched LES to MACE, NequIP, CACE, Allegro, UMA, and MatGL, and it is our ongoing commitment to include LES in other MLIPs, making it more widely accessible. Interestingly, LES works well with the CACE models with three-body
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-10.jpg?height=1211&width=1209&top_left_y=195&top_left_x=449}
+\captionsetup{labelformat=empty}
+\caption{Figure 11. Correlation analysis between force and Born effective charge (BEC) RMSEs for LES-augmented MLIPs. (a,b) Correlation between force RMSE and BEC RMSE for water (a) and dipeptide (b) systems. (c,d) Correlation between force RMSE reduction after LES augmentation and BEC RMSE for water (c) and dipeptide (d) systems.}
+\end{figure}
+interactions $\nu=2$, which are mathematically equivalent to the earlier generation of MLIPs (e.g., HDNNPs, ${ }^{28}$ Gaussian Approximation Potentials, ${ }^{29}$ and DeepMD ${ }^{6}$ ). This suggests that LES will also complement well those lower-body-order MLIP methods. The LES-augmented HDNNPs would indeed be quite similar to the third-generation HDNNPs (3GHDNNPs), ${ }^{9}$ except that not explicitly trained on partial DFT charges. The fact that 3G-HDNNPs have poor performance in many systems ${ }^{9}$ may be attributed to the explicit charge training, rather than inferring from energy and forces.
+
+Second, the LES augmentation is useful across a wide range of systems. Across the three benchmarks (bulk water, dipeptides, and $\mathrm{Au}_{2}$ on $\mathrm{MgO}(001)$ ), the inclusion of LES yields consistent, architecture-agnostic improvements. Even when the reduction of energy and force RMSEs is modest, LES significantly improves physical observables. For example, in the water and dipeptide set, LES achieves accurate BEC predictions despite training exclusively on energy and forces. BECs are not only well-defined physical quantities that serve as sensitive probes of electrostatics, but are also critical in calculating a range of electrical response properties such as dielectric constants, ionic conductivities, and dipole correlation functions. ${ }^{27}$
+
+Third, LES can be scaled to large data sets with chemical diversity and can be used to train universal MLIPs. As a demonstration, the MACELES-OFF model shows better accuracy compared to the short-ranged baseline models,
+encodes the correct electrostatics, and exhibits better transferability. For instance, the MACE-OFF23 models show an amazingly wide range of accurate predictions across small molecules, biological systems, and molecular crystals, but they are less accurate in predicting the densities and heats of vaporization of molecular liquids. Such shortcomings are attributed to the lack of long-range interactions. ${ }^{45}$ Indeed, incorporating LES effectively solved such issues and provides much improved predictions for the liquids. In addition, electrical response properties such as IR spectra are readily available.
+
+Additionally, using LES only requires standard energy and force labels. This is an advantage for scaling up the training of universal MLIPs with large-scale data sets, as most such data sets, ${ }^{52,53,73,74}$ especially of extended systems, do not contain explicit polarization or charge information. However, the dipole moments of gas-phase molecules are more readily available, and in principle, one can include these in the training of partial charges under the LES framework, by adding a dipole loss function as in AIMNET2, ${ }^{20}$ SO3LR, ${ }^{21}$ and MPNICE. ${ }^{75}$ Toward true foundation models with full electrostatic physics, one also needs to address the issue of the field-dependence of atomic charges, which LES currently does not handle, but we have ongoing work along this direction.
+
+To conclude, by incorporating long-range electrostatics and without training on labels other than energy, forces (and stresses), the LES method addresses a core limitation of
+current MLIPs. The LES library works as a drop-in patch for many short-ranged MLIPs, and demonstrates reliable and consistent performance across a wide range of architectures, chemical system types, and data sizes.
+
+\section*{6. METHODS}
+6.1. Implementation. LES is implemented in PyTorch ${ }^{76}$ and is easily compatible with MLIP packages also implemented in PyTorch. In CACE, ${ }^{34}$ we implemented a LESwrapper, and we note that CACE has its own native LES implementation ${ }^{25}$ which yields consistent results. In MACE, ${ }^{33}$ we added a MACELES model which can be used in the same way as the original MACE model, and all training and evaluation procedures stay the same. For NequIP ${ }^{32}$ and Allegro, ${ }^{42}$ we developed an extension package, NequIP-LES, leveraging the modular structure of the redesigned NequIP framework. ${ }^{49}$ One can specify the baseline model through the base_model key and enable BEC inference using the compute_bec flag. The framework automatically augments the baseline architecture by adding charge prediction and Ewald summation modules, while keeping all training and evaluation procedures unchanged. After training, BECs can be computed using either the callback or the model modifier options. In MatGL, ${ }^{36}$ the inference and training are treated in different modules. We extended the Potential module with calc_BEC $=$ True to include LES and autograd to compute the BECs for the inference. We extended the PotentialLightningModule with include_long_range $=$ True to call Potential with long-range interactions for the training. For UMA, ${ }^{43}$ we implemented LES wrappers to handle translation between FAIRChem's data structures and the LES code. Inference, in particular BECs, is handled via an ad hoc module for computing and saving BEC values. These wrappers are used in custom energy-force output heads in the UMA implementation. UMA-LES can be used by simply changing the output head and specifying LES parameters to the model. Training and inference without BECs are entirely unchanged from standard FAIRChem procedures.
+6.2. Details for Benchmarks. The training scripts with hyperparameters as well as the trained models for the water, dipeptides, and $\mathrm{Au}_{2}$ on $\mathrm{MgO}(001)$ data sets are included in the SI repository. For the LES augmentation part, we always use the default parameters: $\sigma=1 \AA, d l=2 \AA$ (which corresponds to a $\mathbf{k}$-point cutoff of $k_{\mathrm{c}}=\pi$ in the Ewald summation).
+
+Figure 11 shows the relation between force RMSE and BEC RMSE for LES-augmented MLIPs (panels $a$ and $b$ ), and the relation between the reduction in force RMSE after LES augmentation and the corresponding BEC RMSE (panels c and d), for water and dipeptide systems.
+
+Table 1 summarizes the energy differences (see Figure 4) between wetting and nonwetting configurations for doped and undoped substrates in the $\mathrm{Au}_{2}-\mathrm{MgO}(001)$ system.
+
+Figure 12a compares the DFT tensors from DFT and those predicted by the LES-augmented CACE model ( $r=4.5 \AA n_{1}=$ 1, $\nu=3$ ) for the same 100 water configurations used in Figure 2b. Figure 12b repeats the same comparison for the corresponding $2 \times 2 \times 2$ replicated supercells to conduct a convergence test for $k$ in eq 5 . The inferred BECs are nearly identical, with the supercell showing slightly improved agreement with DFT ( $R^{2}$ coefficients increasing from 0.976 to 0.985 over all tensor components). These results confirm
+
+\begin{figure}
+\captionsetup{labelformat=empty}
+\caption{Table 1. Energy Difference ( $E_{\text {wetting }}-E_{\text {non-wetting }}$ ) in meV between the Wetting and Non-Wetting Configurations for Doped and Undoped Substrates}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-11.jpg?height=1079&width=853&top_left_y=332&top_left_x=1086}
+\end{figure}
+
+Figure 12. Parity plots comparing Born effective charge (BEC) tensors ( $Z^{*}$ ) from the LES-augmented CACE ( $r=4.5 \AA, n_{l}=1, \nu=$ 3) with RPBE-D3 DFT (ref 57) for 100 bulk water configurations. Main panels compare the diagonal elements of $\operatorname{BEC}\left(Z_{\alpha \alpha}^{*}\right)$, and the inset shows the off-diagonal elements ( $Z_{\alpha \beta}^{*}$ with $\alpha \neq \beta$ ). (a) Primitive cell; (b) $2 \times 2 \times 2$ replicated supercell.
+that LES yields convergent and reliable BEC predictions under periodic boundary conditions.
+6.3. Details on training the MACELES-OFF Model. The training scripts as well as the trained models for the MACELES-OFF are included in the SI repository. The hyperparameters are summarized and compared with the original MACE-OFF models in Table 2.
+
+Table 3 summarizes the test errors for each data set. For the PubChem data set, 13 outlier configurations were removed from a total of 34,093 test structures in accordance with the MACE-OFF paper. ${ }^{45}$
+
+Reference Born effective charges (BECs) and dipole moments for the MACELES-OFF were computed in PySCF ${ }^{78}$ using the $\omega$ B97m-D3(BJ) functional in the Def2SVP basis set. Code for calculating BECs can be found in the infrared module of the properties extension of PySCF https:// github.com/pyscf/properties.git.
+6.4. Details on MD Simulations Using the MACELESOFF Model. 6.4.1. Water. We performed equilibrium NVT simulations of bulk water using the MACE-OFF23 (S, M) and MACELES-OFF models in ASE ${ }^{79}$ at a density of $0.997 \mathrm{~g} / \mathrm{cm}^{3}$ and 300 K for a system of 64 water molecules, employing the Nosé-Hoover thermostat for Figure 7a and b. Each MD
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 2. Hyperparameters of the MACE-OFF and MACELES-OFF Models ${ }^{\boldsymbol{a}}$}
+\begin{tabular}{|l|l|l|l|l|l|l|}
+\hline & 23(S) & 23(M) & 23(M)b & 23(L) & 24(M) & LES \\
+\hline cutoff $r(\AA)$ & 4.5 & 5.0 & 6.0 & 5.0 & 6.0 & 4.5 \\
+\hline channels $k$ & 96 & 128 & 128 & 192 & 128 & 192 \\
+\hline irrep order $l$ & 0 & 1 & 1 & 2 & 1 & 1 \\
+\hline SPICE version & 1 & 1 & 1 & 1 & 2 & 1 \\
+\hline precision & float64 & float64 & float64 & float64 & float64 & float32 \\
+\hline
+\end{tabular}
+\end{table}
+${ }^{a}$ All MACE-OFF models (23(S), 23(M), 23(L), and 24(M)) are taken from ref 45.24(M) was trained on the updated SPICE version $2 .{ }^{77}$
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 3. Test Set Root Mean Square Errors (RMSEs) for Energy and Forces of the MACE-OFF23 (S, M, L) and MACELESOFF Models for Organic Molecules cOmpared to the Underlying DFT Reference data ${ }^{45}$}
+\begin{tabular}{|l|l|l|l|l|l|l|l|l|l|}
+\hline \multicolumn{3}{|c|}{} & PubChem & DES370K Monomers & DES370K Dimers & Dipeptides & Solvated Amino Acids & Water & QMugs \\
+\hline \multirow{8}{*}{![](https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-12.jpg?height=64\&width=33\&top_left_y=905\&top_left_x=412)} & \multirow[t]{4}{*}{E (meV / at)} & 23S & 1.41 & 1.04 & 0.98 & 0.84 & 1.60 & 1.67 & 1.03 \\
+\hline & & 23M & 0.91 & 0.63 & 0.58 & 0.52 & 1.21 & 0.76 & 0.69 \\
+\hline & & 23L & 0.88 & 0.59 & 0.54 & 0.42 & 0.98 & 0.83 & 0.45 \\
+\hline & & LES & 0.71 & 0.54 & 0.47 & 0.52 & 0.82 & 0.69 & 0.76 \\
+\hline & \multirow{4}{*}{F (meV / Å )} & 23S & 35.68 & 17.63 & 16.31 & 25.07 & 38.56 & 28.53 & 41.45 \\
+\hline & & 23M & 20.57 & 9.36 & 9.02 & 14.27 & 23.26 & 15.27 & 23.58 \\
+\hline & & 23L & 14.75 & 6.58 & 6.62 & 10.19 & 19.43 & 13.57 & 16.93 \\
+\hline & & LES & 17.24 & 7.65 & 7.48 & 11.46 & 18.37 & 12.54 & 20.11 \\
+\hline \multirow{8}{*}{RMSE} & \multirow{4}{*}{E (meV / at)} & 23S & 2.74 & 1.47 & 1.51 & 1.26 & 1.98 & 2.07 & 1.28 \\
+\hline & & 23M & 2.02 & 0.90 & 0.91 & 0.85 & 1.55 & 0.99 & 0.89 \\
+\hline & & 23L & 2.48 & 0.84 & 0.87 & 0.70 & 1.32 & 0.99 & 0.58 \\
+\hline & & LES & 1.45 & 0.72 & 0.72 & 0.69 & 1.01 & 0.90 & 0.94 \\
+\hline & \multirow{4}{*}{F (meV / Å )} & 23S & 61.83 & 26.15 & 28.48 & 36.97 & 53.55 & 39.33 & 62.46 \\
+\hline & & 23M & 40.51 & 14.31 & 16.81 & 22.25 & 32.19 & 21.40 & 36.73 \\
+\hline & & 23L & 33.34 & 10.27 & 12.81 & 16.19 & 26.91 & 18.78 & 27.17 \\
+\hline & & LES & 35.26 & 11.70 & 14.42 & 17.62 & 25.31 & 17.08 & 32.57 \\
+\hline
+\end{tabular}
+\end{table}
+simulation was run for 200,000 steps with a time step of 0.25 fs, corresponding to 50 ps .
+
+The time-dependent current of polarization of the system is given by $\mathbf{J}(t)=\sum_{i=1}^{N} Z_{i}^{*}(t) \cdot \mathbf{v}_{i}(t)$, where $Z_{i}^{*}(t)$ is the BEC tensor and $\mathbf{v}_{i}(t)$ is the velocity of an atom $i$. The IR spectra are obtained via the Fourier transform of the current-current autocorrelation function
+$$
+\begin{equation*}
+I(\omega) \propto \int_{0}^{T} d t\langle\mathbf{J}(0) \mathbf{J}(t)\rangle e^{-i \omega t} \tag{6}
+\end{equation*}
+$$
+
+The IR spectrum for Figure 7 b was calculated from the MACELES-OFF MD trajectory, and the resulting raw intensity was smoothed by convolving the spectrum with a Gaussian kernel.
+
+We simulated the density isobar of liquid water at 1 atm by investigating four temperatures: 275, 295,315 , and 336 K . These NPT simulations employed a system of 64 water molecules, with a 1.0 fs time step over 300 ps of simulation time, utilizing the Nosé-Hoover thermostat and Berendsen barostat implemented in ASE.
+6.4.2. Molecular Liquids. For the preparation of MD simulations in the liquid phase, SMILES strings for the organic molecules were first obtained from the PubChem database ${ }^{80}$ and subsequently converted to PDB format using the Python package RDKit. ${ }^{81}$ The initial molecular configurations were generated at $60 \%$ of experimental density using the GROMACS command-line interface, ${ }^{82}$ followed by structural preoptimization with the General AMBER Force Field (GAFF). ${ }^{83}$ A two-stage optimization protocol was then
+implemented: geometry optimization using the MACELESOFF model with the BFGS algorithm in ASE, followed by NVT simulations for 5000 steps using a Nosé-Hoover thermostat with a time step of 1.0 fs to achieve structural relaxation. Production NPT simulations were performed for 300 ps using a 1.0 fs time step, using the same Nosé-Hoover thermostat coupled with the Martyna-Tobias-Klein (MTK) barostat. ${ }^{84}$ Final density and potential energy values were computed by averaging over the last 150 ps to ensure proper equilibration. To compute the enthalpy of vaporization, potential energies for the gas phase were obtained based on simulations of isolated molecules in a nonperiodic box. The ideal gas approximation was employed to account for pressure effects in the gas phase.
+
+It should also be noted the 1,1,2,2-tetrachloroethane system vaporized under NPT simulation using MACELES-OFF, although it remained liquid using MACE-OFF23(M). This might be due to the difficulty of preparing the initial condition of this system. Despite this exception, the MACELES-OFF demonstrated successful simulation of another chlorinated hydrocarbon, 1,4-dichlorobutane, a structurally analogous compound that was an outlier in the MACE-OFF23(M) predictions of $\Delta_{\text {vap }} \mathrm{H}$. Furthermore, the MACELES-OFF accurately predicted both the density and enthalpy of vaporization for chlorinated aniline, thereby further proving its capacity to model intra- and intermolecular interactions involving chlorine atoms.
+
+Simulated density, enthalpy of vaporization, and optimized initial configurations for both liquid and gas phases are provided in the SI repository.
+6.4.3. Simulations of Biological Molecules. The PDB structure of alanine dipeptide was solvated in a cubic box of 28 Å using the addSolvent method in OpenMM, resulting in a system of 2050 atoms. The system was modeled using the AMBER ff99SB-ILDN force field ${ }^{72}$ and the TIP3P water model. ${ }^{85}$ The structure was first geometry-optimized with a tolerance of $10 \mathrm{~kJ} / \mathrm{mol} / \mathrm{nm}$, followed by 50 ps of NPT equilibration at 310 K and 1.013 bar using a Monte Carlo barostat and Langevin thermostat, with a time step of 1.0 fs and a friction coefficient of $1.0 \mathrm{ps}^{-1}$. Production NVT simulations with well-tempered metadynamics were performed for 2 ns for MACELES-OFF and 5 ns for AMBER ff99SBILDN/TIP3P along the central $\phi$ and $\psi$ backbone angles using ASE patched with the PLUMED code (version 2.9). ${ }^{86,87}$
+
+For both collective variables ( $\phi$ and $\psi$ ), we employed a Gaussian height of $2.5 \mathrm{~kJ} / \mathrm{mol}$ and a bias factor of 30 . Gaussian potentials were deposited on the energy landscape every 500 steps, and their width was adapted on the fly based on the local diffusivity. ${ }^{88}$ The FES was computed from reweighting.
+
+For the 1FSV protein, the PDB structure ${ }^{68}$ was placed in a cubic simulation box at a density of $0.6 \mathrm{~g} / \mathrm{cm}^{3}$ to avoid interatomic overlaps and to maintain periodic boundary conditions as required by the LES framework. Geometry optimization was performed in three successive stages using the FIRE optimizer, ${ }^{89}$ with gradually decreasing convergence criteria down to a maximum force of $0.2 \mathrm{eV} / \AA$. We then ran 2 ns of MD production in the NVT ensemble at 310 K using a 1 fs time step and a friction coefficient of $0.1 \mathrm{ps}^{-1}$, starting from the PDB crystallographic structure.
+
+Salt bridge analysis was performed by counting the number of interactions within a $4.0 \AA$ cutoff between the side-chain oxygen atoms of acidic residues (e.g., ASP) and the nitrogen atoms of basic residues (e.g., ARG). Similarly, hydrogen bonds were assessed by counting interactions within a $3.5 \AA$ cutoff between donor and acceptor atoms.
+6.4.4. Timing. Figure 13 compares the inference speed of the MACE-OFF23 (S, M, L) models and the MACELES-OFF model for MD simulations of liquid water using both the ASE and OpenMM implementations on a single NVIDIA L40S GPU with 48 GB of memory. All MACE-OFF23 models were also converted to single precision (float32) to ensure a fair comparison with MACELES-OFF, which was trained and
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-13.jpg?height=455&width=540&top_left_y=1872&top_left_x=323}
+\captionsetup{labelformat=empty}
+\caption{Figure 13. Computational performance benchmarks of molecular dynamics (MD) simulations using the MACELES-OFF and the MACE-OFF23 ${ }^{45}$ models. The timing of MD simulations for bulk liquid water with varying system sizes was performed on an NVIDIA L40S GPU. Benchmarks were performed with both single-precision (float32) and double-precision (float64) models using ASE and OpenMM implementations.}
+\end{figure}
+evaluated in float32 precision. As shown, the inclusion of longrange interaction via LES introduces only minimal computational overhead. The MACELES-OFF model achieves a comparable inference speed to the MACE-OFF23(M) at the same precision (float32), which shares the same irreducible representation order ( $l=1$ ), and also to the MACE-OFF23(S) at double-precision. Moreover, the MACELES-OFF model is significantly faster than the MACE-OFF23(L), which exhibits similar RMSE values to MACELES-OFF, as summarized in Table 3. No significant speed differences were observed between the ASE and OpenMM implementations for any of the models, and all models demonstrate favorable scaling with system size. In practice, the MACELES-OFF model supports simulations with up to approximately 6000 atoms on a single GPU, whereas the MACE-OFF23(S) float32 model using ASE can handle up to around 35,000 atoms.
+
+\section*{- ASSOCIATED CONTENT}
+
+\section*{Data Availability Statement}
+
+The training sets, training scripts, and trained potentials are available at https://github.com/ChengUCB/les_fit. The LES library is publicly available at https://github.com/ChengUCB/ les. The CACE package with the LES implementation is available at https://github.com/BingqingCheng/cace. The MACE package with the LES implementation is available at https://github.com/ACEsuit/mace. The NequIP and Allegro LES extension package is available at https://github.com/ ChengUCB/NequIP-LES. The MatGL package with the LES implementation is available at https://github.com/ ChengUCB/matgl. The UMA package with the LES implementation is available at https://github.com/santi921/ fairchem/tree/les_branch.
+
+\section*{- AUTHOR INFORMATION}
+
+\section*{Corresponding Author}
+
+Bingqing Cheng - Department of Chemistry and Bakar Institute of Digital Materials for the Planet, University of California, Berkeley, California 94720, United States; Chemical Sciences Division and Materials Sciences Division, Lawrence Berkeley National Laboratory, Berkeley, California 94720, United States; The Institute of Science and Technology Austria, Klosterneuburg 3400, Austria; © orcid.org/0000-0002-3584-9632; Email: bingqingcheng@berkeley.edu
+
+\section*{Authors}
+
+Dongjin Kim - Department of Chemistry, University of California, Berkeley, California 94720, United States; © orcid.org/0009-0001-6780-245X
+Xiaoyu Wang - Department of Chemistry, University of California, Berkeley, California 94720, United States
+Santiago Vargas - Chemical Sciences Division, Lawrence Berkeley National Laboratory, Berkeley, California 94720, United States; © orcid.org/0000-0002-1634-0945
+Peichen Zhong - Bakar Institute of Digital Materials for the Planet, University of California, Berkeley, California 94720, United States; © orcid.org/0000-0003-1921-1628
+Daniel S. King - Bakar Institute of Digital Materials for the Planet, University of California, Berkeley, California 94720, United States
+Theo Jaffrelot Inizan - Bakar Institute of Digital Materials for the Planet, University of California, Berkeley, California 94720, United States
+
+Complete contact information is available at:
+https://pubs.acs.org/10.1021/acs.jctc.5c01400
+
+\section*{Notes}
+
+The authors declare the following competing financial interest(s): B.C. has an equity stake in AIMATX Inc. The University of California, Berkeley has filed a provisional patent for the Latent Ewald Summation algorithm.
+
+\section*{ACKNOWLEDGMENTS}
+
+Research reported in this publication was supported by the National Institute Of General Medical Sciences of the National Institutes of Health under Award Number R35GM159986. The content is solely the responsibility of the authors and does not necessarily represent the official views of the National Institutes of Health. D.K. and B.C. acknowledge funding from Toyota Research Institute Synthesis Advanced Research Challenge. T.J.I., D.S.K. and P.Z. acknowledge funding from BIDMaP Postdoctoral Fellowship. T.J.I. used resources of the National Energy Research Scientific Computing Center (NERSC), a Department of Energy Office of Science User Facility using NERSC award DOEERCAP0031751 'GenAI@ NERSC'. The authors thank Bowen Deng for valuable discussions on MatGL implementation, and thank Gabor Csanyi for stimulating discussions.
+
+\section*{REFERENCES}
+(1) Keith, J. A.; Vassilev-Galindo, V.; Cheng, B.; Chmiela, S.; Gastegger, M.; Müller, K. R.; Tkatchenko, A. Combining machine learning and computational chemistry for predictive insights into chemical systems. Chem. Rev. 2021, 121, 9816-9872.
+(2) Unke, O. T.; Chmiela, S.; Sauceda, H. E.; Gastegger, M.; Poltavsky, I.; Schütt, K. T.; Tkatchenko, A.; Müller, K. R. Machine learning force fields. Chem. Rev. 2021, 121, 10142-10186.
+(3) Niblett, S. P.; Galib, M.; Limmer, D. T. Learning intermolecular forces at liquid-vapor interfaces. J. Chem. Phys. 2021, 155, 164101.
+(4) Grisafi, A.; Ceriotti, M. Incorporating long-range physics in atomic-scale machine learning. J. Chem. Phys. 2019, 151, 204105.
+(5) Huguenin-Dumittan, K. K.; Loche, P.; Haoran, N.; Ceriotti, M. Physics-inspired equivariant descriptors of nonbonded interactions. J. Phys. Chem. Lett. 2023, 14, 9612-9618.
+(6) Zhang, L.; Wang, H.; Muniz, M. C.; Panagiotopoulos, A. Z.; Car, R.; Weinan, E. A deep potential model with long-range electrostatic interactions. J. Chem. Phys. 2022, 156, 124107.
+(7) Monacelli, L.; Marzari, N. Electrostatic interactions in atomistic and machine-learned potentials for polar materials. arXiv 2024, 2412.01642.
+(8) Unke, O. T.; Meuwly, M. Physnet: A neural network for predicting energies, forces, dipole moments, and partial charges. J. Chem. Theory Comput. 2019, 15, 3678-3693.
+(9) Ko, T. W.; Finkler, J. A.; Goedecker, S.; Behler, J. A fourthgeneration high-dimensional neural network potential with accurate electrostatics including non-local charge transfer. Nat. Commun. 2021, 12, 398.
+(10) Gao, A.; Remsing, R. C. Self-consistent determination of longrange electrostatics in neural network potentials. Nat. Commun. 2022, 13, 1572.
+(11) Sifain, A. E.; Lubbers, N.; Nebgen, B. T.; Smith, J. S.; Lokhov, A. Y.; Isayev, O.; Roitberg, A. E.; Barros, K.; Tretiak, S. Discovering a transferable charge assignment model using machine learning. J. Phys. Chem. Lett. 2018, 9, 4495-4501.
+(12) Gong, S.; Zhang, Y.; Mu, Z.; Pu, Z.; Wang, H.; Han, X.; Yu, Z.; Chen, M.; Zheng, T.; Wang, Z.; Chen, L.; Yang, Z.; Wu, X.; Shi, S.; Gao, W.; Yan, W.; Xiang, L. A predictive machine learning force-field framework for liquid electrolyte development. Nat. Mach. Intell. 2025, 7, 543-552.
+(13) Shaidu, Y.; Pellegrini, F.; Küçükbenli, E.; Lot, R.; de Gironcoli, S. Incorporating long-range electrostatics in neural network potentials via variational charge equilibration from shortsighted ingredients. npj Comput. Mater. 2024, 10, 47.
+(14) Yu, H.; Hong, L.; Chen, S.; Gong, X.; Xiang, H. Capturing long-range interaction with reciprocal space neural network. arXiv 2022, 2211.16684.
+(15) Kosmala, A.; Gasteiger, J.; Gao, N.; Günnemann, S. Ewaldbased long-range message passing for molecular graphs. In International Conference on Machine Learning; PMLR, 2023, pp 1754417563.
+(16) Plé, T.; Lagardère, L.; Piquemal, J.-P. Force-field-enhanced neural network interactions: from local equivariant embedding to atom-in-molecule properties and long-range effects. Chem. Sci. 2023, 14, 12554-12569.
+(17) Jaffrelot Inizan, T.; Plé, T.; Adjoua, O.; Ren, P.; Gökcan, H.; Isayev, O.; Lagardère, L.; Piquemal, J.-P. Scalable hybrid deep neural networks/polarizable potentials biomolecular simulations including long-range effects. Chem. Sci. 2023, 14, 5438-5452.
+(18) Caruso, A.; Venturin, J.; Giambagli, L.; Rolando, E.; Noé, F.; Clementi, C. Extending the range of graph neural networks: Relaying attention nodes for global encoding. arXiv 2025, 2502.13797.
+(19) Rinaldi, M.; Bochkarev, A.; Lysogorskiy, Y.; Drautz, R. Chargeconstrained atomic cluster expansion. Phys. Rev. Mater. 2025, 9, 033802.
+(20) Anstine, D. M.; Zubatyuk, R.; Isayev, O. Aimnet2: a neural network potential to meet your neutral, charged, organic, and elemental-organic needs. Chem. Sci. 2025, 16, 10228-10244.
+(21) Kabylda, A.; Frank, J. T.; Suárez-Dou, S.; Khabibrakhmanov, A.; Medrano Sandonas, L.; Unke, O. T.; Chmiela, S.; Müller, K. R.; Tkatchenko, A. Molecular simulations with a pretrained neural network and universal pairwise force fields. J. Am. Chem. Soc. 2025, 147, 33723-33734.
+(22) Faller, C.; Kaltak, M.; Kresse, G. Density-based long-range electrostatic descriptors for machine learning force fields. J. Chem. Phys. 2024, 161, 214701.
+(23) Plé, T.; Adjoua, O.; Benali, A.; Posenitskiy, E.; Villot, C.; Lagardère, L.; Piquemal, J.-P. A foundation model for accurate atomistic simulations in drug design. ChemRxiv 2025, f1hgn.
+(24) Loche, P.; Huguenin-Dumittan, K. K.; Honarmand, M.; Xu, Q.; Rumiantsev, E.; How, W. B.; Langer, M. F.; Ceriotti, M. Fast and flexible long-range models for atomistic machine learning. J. Chem. Phys. 2025, 162, 142501.
+(25) Cheng, B. Latent ewald summation for machine learning of long-range interactions. npj Comput. Mater. 2025, 11, 80.
+(26) King, D. S.; Kim, D.; Zhong, P.; Cheng, B. Machine learning of charges and long-range interactions from energies and forces. Nat. Commun. 2025, 16, 8763.
+(27) Zhong, P.; Kim, D.; King, D. S.; Cheng, B. Machine learning interatomic potential can infer electrical response. arXiv 2025, 2504.05169.
+(28) Behler, J.; Parrinello, M. Generalized neural-network representation of high-dimensional potential-energy surfaces. Phys. Rev. Lett. 2007, 98, 146401.
+(29) Bartók, A. P.; Payne, M. C.; Kondor, R.; Csányi, G. Gaussian approximation potentials: The accuracy of quantum mechanics, without the electrons. Phys. Rev. Lett. 2010, 104, 136403.
+(30) Shapeev, A. V. Moment tensor potentials: A class of systematically improvable interatomic potentials. Multiscale Model. Simul. 2016, 14, 1153-1173.
+(31) Drautz, R. Atomic cluster expansion for accurate and transferable interatomic potentials. Phys. Rev. B 2019, 99, 014104.
+(32) Batzner, S.; Musaelian, A.; Sun, L.; Geiger, M.; Mailoa, J. P.; Kornbluth, M.; Molinari, N.; Smidt, T. E.; Kozinsky, B. E (3)equivariant graph neural networks for data-efficient and accurate interatomic potentials. Nat. Commun. 2022, 13, 2453.
+(33) Batatia, I.; Kovacs, D. P.; Simm, G.; Ortner, C.; Csányi, G. Mace: Higher order equivariant message passing neural networks for
+fast and accurate force fields. In Advances in Neural Information Processing Systems, 2022; Vol. 35, pp 11423-11436.
+(34) Cheng, B. Cartesian atomic cluster expansion for machine learning interatomic potentials. npj Comput. Mater. 2024, 10, 157.
+(35) Qu, E.; Krishnapriyan, A. S. The importance of being scalable: Improving the speed and accuracy of neural network interatomic potentials across chemical domains. In The Thirty-eighth Annual Conference on Neural Information Processing Systems, 2024.
+(36) Ko, T. W.; Deng, B.; Nassar, M.; Barroso-Luque, L.; Liu, R.; Qi, J.; Thakur, A. C.; Mishra, A. R.; Liu, E.; Ceder, G.; Miret, S.; Ong, S. P. Materials graph library (matgl), an open-source graph deep learning library for materials science and chemistry. npj Comput. Mater. 2025, 11, 253.
+(37) Xiang, F.; Wood, B. M.; Barroso-Luque, L.; Levine, D. S.; Gao, M.; Dzamba, M.; Lawrence Zitnick, C. Learning smooth and expressive interatomic potentials for physical property prediction. arXiv 2025, 2502.12147.
+(38) Pozdnyakov, S.; Ceriotti, M. Smooth, exact rotational symmetrization for deep learning on point clouds. In Advances in Neural Information Processing Systems, 2023; Vol. 36, pp 7946979501
+(39) Pelaez, R. P.; Simeon, G.; Galvelis, R.; Mirarchi, A.; Eastman, P.; Doerr, S.; Thölke, P.; Markland, T. E.; De Fabritiis, G. Torchmdnet 2.0: Fast neural network potentials for molecular simulations. $J$. Chem. Theory Comput. 2024, 20, 4076-4087.
+(40) Haghighatlari, M.; Li, J.; Guan, X.; Zhang, O.; Das, A.; Stein, C. J.; Heidar-Zadeh, F.; Liu, M.; Head-Gordon, M.; Bertels, L.; Hao, H.; Leven, I.; Head-Gordon, T. Newtonnet: A newtonian message passing network for deep learning of interatomic potentials and forces. Digital Discovery 2022, 1, 333-343.
+(41) Liao, Y.-L.; Smidt, T. Equiformer: Equivariant graph attention transformer for 3d atomistic graphs. In International Conference on Learning Representations, 2023.
+(42) Musaelian, A.; Batzner, S.; Johansson, A.; Sun, L.; Owen, C. J.; Kornbluth, M.; Kozinsky, B. Learning local equivariant representations for large-scale atomistic dynamics. Nat. Commun. 2023, 14, 579.
+(43) Wood, B. M.; Dzamba, M.; Xiang, F.; Gao, M.; Shuaibi, M.; Barroso-Luque, L.; Abdelmaqsoud, K.; Gharakhanyan, V.; Kitchin, J. R.; Levine, D. S.; Michel, K.; Sriram, A.; Cohen, T.; Das, A.; Rizvi, A.; Sahoo, S. J.; Ulissi, Z. W.; Lawrence Zitnick, C. Uma: A family of universal models for atoms. arXiv 2025, 2506.23971.
+(44) Eastman, P.; Behara, P. K.; Dotson, D. L.; Galvelis, R.; Herr, J. E.; Horton, J. T.; Mao, Y.; Chodera, J. D.; Pritchard, B. P.; Wang, Y.; De Fabritiis, G.; Markland, T. E. Spice, a dataset of drug-like molecules and peptides for training machine learning potentials. Sci. Data 2023, 10, 11.
+(45) Péter Kovács, D.; Harry Moore, J.; Browning, N. J.; Batatia, I.; Horton, J. T.; Pu, Y.; Kapil, V.; Witt, W. C.; Magdău, I.-B.; Cole, D. J.; Csányi, G. Mace-off: Short-range transferable machine learning force fields for organic molecules. J. Am. Chem. Soc. 2025, 147, 1759817611.
+(46) Wang, H.; Zhang, L.; Han, J.; Weinan, E. Deepmd-kit: A deep learning package for many-body potential energy representation and molecular dynamics. Comput. Phys. Commun. 2018, 228, 178-184.
+(47) Schütt, K.; Kindermans, P.-J.; Felix, H. E. S.; Chmiela, S.; Tkatchenko, A.; Müller, K.-R. Schnet: A continuous-filter convolutional neural network for modeling quantum interactions. In Advances in neural information processing systems, 2017; Vol. 30
+(48) Gonze, X.; Lee, C. Dynamical matrices, born effective charges, dielectric permittivity tensors, and interatomic force constants from density-functional perturbation theory. Phys. Rev. B 1997, 55, 1035510368.
+(49) Tan, C. W.; Descoteaux, M. L.; Kotak, M.; de Miranda Nascimento, G.; Kavanagh, S. R.; Zichi, L.; Wang, M.; Saluja, A.; Hu, Y. R.; Smidt, T.; Johansson, A.; Witt, W. C.; Kozinsky, B.; Musaelian, A. High-performance training and inference for deep equivariant interatomic potentials. arXiv 2025, 2504.16068.
+(50) Chen, C.; Ong, S. P. A universal graph deep learning interatomic potential for the periodic table. Nat. Comput. Sci. 2022, 2, 718-728.
+(51) Deng, B.; Zhong, P.; Jun, K.; Riebesell, J.; Han, K.; Bartel, C. J.; Ceder, G. Chgnet as a pretrained universal neural network potential for charge-informed atomistic modelling. Nat. Mach. Intell. 2023, 5, 1031-1041.
+(52) Levine, D. S.; Shuaibi, M.; Spotte-Smith, E. W. C.; Taylor, M. G.; Hasyim, M. R.; Michel, K.; Batatia, I.; Csányi, G.; Dzamba, M.; Eastman, P.; Frey, N. C.; Xiang, F.; Gharakhanyan, V.; Krishnapriyan, A. S.; Rackers, J. A.; Raja, S.; Rizvi, A.; Rosen, A. S.; Ulissi, Z.; Vargas, S.; Lawrence Zitnick, C.; Blau, S. M.; Wood, B. M. The open molecules 2025 (omol25) dataset, evaluations, and models. arXiv 2025, 2505.08762.
+(53) Barroso-Luque, L.; Shuaibi, M.; Xiang, F.; Wood, B. M.; Dzamba, M.; Gao, M.; Rizvi, A.; Lawrence Zitnick, C.; Ulissi, Z. W. Open materials 2024 (omat24) inorganic materials dataset and models. arXiv 2024, 2410.12771.
+(54) Passaro, S.; Lawrence Zitnick, C. Reducing so(3) convolutions to so(2) for efficient equivariant gnns. arXiv 2023, 2302.03655.
+(55) Remsing, R. C.; Rodgers, J. M.; Weeks, J. D. Deconstructing classical water models at interfaces and in bulk. J. Stat. Phys. 2011, 145, 313-334.
+(56) Gao, A.; Remsing, R. C.; Weeks, J. D. Short solvent model for ion correlations and hydrophobic association. Proc. Natl. Acad. Sci. U.S.A. 2020, 117, 1293-1302.
+(57) Schmiedmayer, B.; Kresse, G. Derivative learning of tensorial quantities-predicting finite temperature infrared spectra from first principles. J. Chem. Phys. 2024, 161, 084703.
+(58) Avbelj, F.; Grdadolnik, S. G.; Grdadolnik, J.; Baldwin, R. L. Intrinsic backbone preferences are fully present in blocked amino acids. Proc. Natl. Acad. Sci. U.S.A. 2006, 103, 1272-1277.
+(59) Yuan, E. C.-Y.; Liu, Y.; Chen, J.; Zhong, P.; Raja, S.; Kreiman, T.; Vargas, S.; Xu, W.; Head-Gordon, M.; Yang, C.; Blau, S. M.; Cheng, B.; Krishnapriyan, A.; Head-Gordon, T. Foundation models for atomistic simulation of chemistry and materials. arXiv 2025, 2503.10538.
+(60) Isert, C.; Atz, K.; Jiménez-Luna, J.; Schneider, G. Qmugs, quantum mechanical properties of drug-like molecules. Sci. Data 2022, 9, 273.
+(61) Skinner, L. B.; Benmore, C. J.; Neuefeind, J. C.; Parise, J. B. The structure of water around the compressibility minimum. J. Chem. Phys. 2014, 141, 214507.
+(62) Bertie, J. E.; Lan, Z. Infrared intensities of liquids xx: The intensity of the oh stretching band of liquid water revisited, and the best current values of the optical constants of $\mathrm{h} 2 \mathrm{o}(\mathrm{l})$ at $25^{\circ} \mathrm{c}$ between 15,000 and 1 cm -1. Appl. Spectrosc. 1996, 50, 1047-1057.
+(63) Marsalek, O.; Markland, T. E. Quantum dynamics and spectroscopy of ab initio liquid water: The interplay of nuclear and electronic quantum effects. J. Phys. Chem. Lett. 2017, 8, 1545-1551.
+(64) Musil, F.; Zaporozhets, I.; Noé, F.; Clementi, C.; Kapil, V. Quantum dynamics using path integral coarse-graining. J. Chem. Phys. 2022, 157, 181102.
+(65) Haynes, W. M. CRC Handbook of Chemistry and Physics; CRC Press, 2016.
+(66) Linstorm, P. Nist chemistry webbook, nist standard reference database number 69. J. Phys. Chem. Ref. Data 1998, 9, 1-1951.
+(67) Magdău, I. B.; Arismendi-Arrieta, D. J.; Smith, H. E.; Grey, C. P.; Hermansson, K.; Csányi, G. Machine learning force fields for molecular liquids: Ethylene carbonate/ethyl methyl carbonate binary solvent. npj Comput. Mater. 2023, 9, 146.
+(68) Dahiyat, B. I.; Mayo, S. L. De Novo Protein Design: Fully Automated Sequence Selection. Science 1997, 278, 82-87.
+(69) Barducci, A.; Bussi, G.; Parrinello, M. Well-Tempered Metadynamics: A Smoothly Converging and Tunable Free-Energy Method. Phys. Rev. Lett. 2008, 100, 020603.
+(70) Zhang, S.; Schweitzer-Stenner, R.; Urbanc, B. Do Molecular Dynamics Force Fields Capture Conformational Dynamics of Alanine in Water? J. Chem. Theory Comput. 2020, 16, 510-527.
+(71) Wang, Z.; Duan, Y. Solvation effects on alanine dipeptide: A MP2/cc-pVTZ//MP2/6-31G** study of ( $\phi, \psi$ ) energy maps and conformers in the gas phase, ether, and water. J. Comput. Chem. 2004, 25, 1699-1716.
+(72) Lindorff-Larsen, K.; Piana, S.; Palmo, K.; Maragakis, P.; Klepeis, J. L.; Dror, R. O.; Shaw, D. E. Improved side-chain torsion potentials for the Amber ff99SB protein force field. Proteins: Struct., Funct., Bioinf. 2010, 78, 1950-1958.
+(73) Jain, A.; Ong, S. P.; Hautier, G.; Chen, W.; Richards, W. D.; Dacek, S.; Cholia, S.; Gunter, D.; Skinner, D.; Ceder, G.; Persson, K. A. Commentary: The materials project: A materials genome approach to accelerating materials innovation. APL Mater. 2013, 1, 011002.
+(74) Tran, R.; Lan, J.; Shuaibi, M.; Wood, B. M.; Goyal, S.; Das, A.; Heras-Domingo, J.; Kolluru, A.; Rizvi, A.; Shoghi, N.; Sriram, A.; Therrien, F.; Abed, J.; Voznyy, O.; Sargent, E. H.; Ulissi, Z.; Zitnick, C. L. The open catalyst 2022 (oc22) dataset and challenges for oxide electrocatalysts. ACS Catal. 2023, 13, 3066-3084.
+(75) Weber, J. L.; Guha, R. D.; Agarwal, G.; Wei, Y.; Fike, A. A.; Xie, X.; Stevenson, J.; Leswing, K.; Halls, M. D.; Abel, R.; Jacobson, L. D. Efficient long-range machine learning force fields for liquid and materials properties. arXiv 2025, 2505.06462.
+(76) Paszke, A.; Gross, S.; Massa, F.; Lerer, A.; Bradbury, J.; Chanan, G.; Killeen, T.; Lin, Z.; Gimelshein, N.; Antiga, L.; Desmaison, A.; Kopf, A.; Yang, E.; DeVito, Z.; Raison, M.; Tejani, A.; Chilamkurthy, S.; Steiner, B.; Fang, L.; Bai, J.; Chintala, S. Pytorch: An imperative style, high-performance deep learning library. In Advances in Neural Information Processing Systems; Curran Associates, Inc., 2019; Vol. 32
+(77) Eastman, P.; Kumar Behara, P.; Dotson, D.; Galvelis, R.; Herr, J.; Horton, J.; Mao, Y.; Chodera, J.; Pritchard, B.; Wang, Y.; De Fabritiis, G.; Markland, T. Spice 2.0.1; Zenodo, 2024. https://zenodo. org/records/10975225.
+(78) Sun, Q.; Berkelbach, T. C.; Blunt, N. S.; Booth, G. H.; Guo, S.; Li, Z.; Liu, J.; McClain, J. D.; Sayfutyarova, E. R.; Sharma, S.; Wouters, S.; Chan, G. K.; Chan, L. Pyscf: the python-based simulations of chemistry framework. Wiley Interdiscip. Rev.: Comput. Mol. Sci. 2018, 8, No. e1340.
+(79) Larsen, A. H.; Mortensen, J. J.; Blomqvist, J.; Castelli, I. E.; Christensen, R.; Dułak, M.; Friis, J.; Groves, M. N.; Hammer, B.; Hargus, C.; Hermes, E. D.; Jennings, P. C.; Jensen, P. B.; Kermode, J.; Kitchin, J. R.; Kolsbjerg, E. L.; Kubal, J.; Kaasbjerg, K.; Lysgaard, S.; Maronsson, J. B.; Maxson, T.; Olsen, T.; Pastewka, L.; Peterson, A.; Rostgaard, C.; Schiøtz, J.; Schütt, O.; Strange, M.; Thygesen, K. S.; Vegge, T.; Vilhelmsen, L.; Walter, M.; Zeng, Z.; Jacobsen, K. W. The atomic simulation environment-a Python library for working with atoms. J. Phys.: Condens. Matter 2017, 29, 273002.
+(80) Kim, S.; Chen, J.; Cheng, T.; Gindulyte, A.; He, J.; He, S.; Li, Q.; Shoemaker, B.; Thiessen, P. A.; Yu, B.; Zaslavsky, L.; Zhang, J.; Bolton, E. Pubchem 2025 update. Nucleic Acids Res. 2025, 53, D1516-D1525.
+(81) Landrum, G.; Tosco, P.; Kelley, B.; Rodriguez, R.; Cosgrove, D.; Vianello, R.; sriniker, P. G.; Jones, G.; Kawashima, E.; NadineSchneider, D.; Dalke, A.; Swain, M.; Cole, B.; Turk, S.; Savelev, A.; cdd, t.; Vaucher, A.; Wójcikowski, M.; Take, I.; Walker, R.; Scalfani, V. F.; Hussein, F.; Ujihara, K.; Probst, D.; Lehtivarjo, J.; godin, g.; Pahl, A.; Maeder, N. Rdkit/rdkit: 2025_03_2 (Q1 2025) Release; Zenodo, 2025. https://zenodo.org/records/15286010.
+(82) Berendsen, H. J. C.; van der Spoel, D.; van Drunen, R. Gromacs: A message-passing parallel molecular dynamics implementation. Comput. Phys. Commun. 1995, 91, 43-56.
+(83) Wang, J.; Wang, W.; Kollman, P. A.; Case, D. A. Automatic atom type and bond type perception in molecular mechanical calculations. J. Mol. Graphics Modell. 2006, 25, 247-260.
+(84) Yoshida, H. Construction of higher order symplectic integrators. Phys. Lett. A 1990, 150, 262-268.
+(85) Jorgensen, W. L.; Chandrasekhar, J.; Madura, J. D.; Impey, R. W.; Klein, M. L. Comparison of simple potential functions for simulating liquid water. J. Chem. Phys. 1983, 79, 926-935.
+(86) The PLUMED consortium. Promoting transparency and reproducibility in enhanced molecular simulations. Nat. Methods 2019, 16, 670-673.
+(87) Tribello, G. A.; Bonomi, M.; Branduardi, D.; Camilloni, C.; Bussi, G. PLUMED 2: New feathers for an old bird. Comput. Phys. Commun. 2014, 185, 604-613.
+(88) Branduardi, D.; Bussi, G.; Parrinello, M. Metadynamics with adaptive gaussians. J. Chem. Theory Comput. 2012, 8, 2247-2254.
+(89) Bitzek, E.; Koskinen, P.; Gähler, F.; Moseler, M.; Gumbsch, P. Structural relaxation made simple. Phys. Rev. Lett. 2006, 97, 170201.
+![](https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-16.jpg?height=553&width=851&top_left_y=1496&top_left_x=1090)
+![](https://cdn.mathpix.com/cropped/710a4a5f-cc4b-440c-b742-52c69d7a81c5-16.jpg?height=608&width=844&top_left_y=2024&top_left_x=1095)
