@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="250" viewBox="0 0 960 250" role="img" aria-label="Timeline for long-range ML force fields">
+  <defs><style>.year{font:800 18px Verdana,DejaVu Sans,sans-serif;fill:#0F172A}.txt{font:13px Verdana,DejaVu Sans,sans-serif;fill:#334155}.dot{fill:#F97316;stroke:white;stroke-width:4}</style></defs>
+  <rect width="960" height="250" rx="24" fill="#F8FAFC"/>
+  <line x1="80" y1="122" x2="880" y2="122" stroke="#0A4D68" stroke-width="5" stroke-linecap="round"/>
+  <g text-anchor="middle">
+    <circle class="dot" cx="110" cy="122" r="13"/><text class="year" x="110" y="76">2019</text><text class="txt" x="110" y="160">PhysNet</text><text class="txt" x="110" y="180">charges/dipoles</text>
+    <circle class="dot" cx="250" cy="122" r="13"/><text class="year" x="250" y="76">2021</text><text class="txt" x="250" y="160">SpookyNet</text><text class="txt" x="250" y="180">4G-HDNNP</text>
+    <circle class="dot" cx="390" cy="122" r="13"/><text class="year" x="390" y="76">2022</text><text class="txt" x="390" y="160">DPLR</text><text class="txt" x="390" y="180">Wannier + Ewald</text>
+    <circle class="dot" cx="530" cy="122" r="13"/><text class="year" x="530" y="76">2023</text><text class="txt" x="530" y="160">EwaldMP</text><text class="txt" x="530" y="180">reciprocal MP</text>
+    <circle class="dot" cx="670" cy="122" r="13"/><text class="year" x="670" y="76">2024</text><text class="txt" x="670" y="160">VCQ</text><text class="txt" x="670" y="180">QEq variants</text>
+    <circle class="dot" cx="820" cy="122" r="13"/><text class="year" x="820" y="76">2025+</text><text class="txt" x="820" y="160">LES · SOG-Net</text><text class="txt" x="820" y="180">augmentation era</text>
+  </g>
+</svg>

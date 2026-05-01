@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" role="img" aria-label="Pipeline for long-range machine learning force fields">
+  <defs>
+    <linearGradient id="panel" x1="0" x2="1">
+      <stop offset="0" stop-color="#F8FBFF"/>
+      <stop offset="1" stop-color="#E6F7F4"/>
+    </linearGradient>
+    <style>
+      .title{font:800 26px Verdana,DejaVu Sans,sans-serif;fill:#0F172A}.box{fill:white;stroke:#0A4D68;stroke-width:2}.small{font:600 15px Verdana,DejaVu Sans,sans-serif;fill:#123}.tiny{font:12px Verdana,DejaVu Sans,sans-serif;fill:#334155}.arrow{stroke:#F97316;stroke-width:4;fill:none;marker-end:url(#m)}
+    </style>
+    <marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#F97316"/></marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="330" rx="26" fill="url(#panel)"/>
+  <text x="480" y="46" text-anchor="middle" class="title">A Practical Long-Range MLFF Stack</text>
+  <rect x="45" y="90" width="160" height="112" rx="18" class="box"/>
+  <text x="125" y="124" text-anchor="middle" class="small">Short-Range MLIP</text>
+  <text x="125" y="154" text-anchor="middle" class="tiny">MACE · NequIP</text>
+  <text x="125" y="174" text-anchor="middle" class="tiny">CACE · DeepMD</text>
+  <path d="M210 146 H292" class="arrow"/>
+  <rect x="300" y="82" width="170" height="128" rx="18" class="box"/>
+  <text x="385" y="114" text-anchor="middle" class="small">Latent Physics</text>
+  <text x="385" y="144" text-anchor="middle" class="tiny">charges · dipoles</text>
+  <text x="385" y="164" text-anchor="middle" class="tiny">MLWCs · hidden vars</text>
+  <text x="385" y="184" text-anchor="middle" class="tiny">polarization response</text>
+  <path d="M475 146 H557" class="arrow"/>
+  <rect x="565" y="82" width="170" height="128" rx="18" class="box"/>
+  <text x="650" y="114" text-anchor="middle" class="small">Long-Range Engine</text>
+  <text x="650" y="144" text-anchor="middle" class="tiny">Ewald · PME</text>
+  <text x="650" y="164" text-anchor="middle" class="tiny">Fourier conv</text>
+  <text x="650" y="184" text-anchor="middle" class="tiny">D3/D4/MBD tails</text>
+  <path d="M740 146 H822" class="arrow"/>
+  <rect x="830" y="90" width="85" height="112" rx="18" class="box"/>
+  <text x="872" y="128" text-anchor="middle" class="small">MD</text>
+  <text x="872" y="154" text-anchor="middle" class="tiny">forces</text>
+  <text x="872" y="174" text-anchor="middle" class="tiny">stress</text>
+  <path d="M385 220 C385 280 650 280 650 220" stroke="#0A4D68" stroke-width="3" stroke-dasharray="7 7" fill="none"/>
+  <text x="518" y="282" text-anchor="middle" class="tiny">train with energy / force / charge / dipole / response labels when available</text>
+</svg>
