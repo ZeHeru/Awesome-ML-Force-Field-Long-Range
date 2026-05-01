@@ -39,8 +39,6 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 >
 > 🌓 **Dispersion and van der Waals**: D3/D4/MBD-style corrections and datasets for noncovalent interaction learning.
 >
-> 🌔 **Software integration**: modules that can be attached to DeepMD, CACE, MACE, NequIP, Allegro, CHGNet, SchNetPack, OpenMM, ASE, or LAMMPS workflows.
->
 > 🎉 Contributions are welcome. If a long-range MLFF paper, repository, or benchmark is missing, please submit a PR.
 
 </details>
@@ -60,8 +58,6 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 > 🌒 **全局通信机制**：reciprocal-space message passing、Latent Ewald、Fourier convolution、global/relay node、nonlocal descriptor。
 >
 > 🌓 **色散与范德华**：D3/D4/MBD 修正、非共价相互作用数据集、短程模型 + 显式色散的混合路线。
->
-> 🌔 **工程实现**：DeepMD、CACE、MACE、NequIP、Allegro、CHGNet、SchNetPack、OpenMM、ASE、LAMMPS 等生态中的可用模块。
 >
 > 🎉 欢迎补充遗漏论文、代码、数据集与复现实验。这个列表会持续更新。
 
@@ -107,7 +103,6 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 - [🧲 Polarization, Multipoles, and Electric Response](#-polarization-multipoles-and-electric-response)
 - [🌫️ Dispersion and Noncovalent Interactions](#️-dispersion-and-noncovalent-interactions)
 - [🧪 Datasets and Benchmarks](#-datasets-and-benchmarks)
-- [🛠️ Software Ecosystem](#️-software-ecosystem)
 - [🧠 Reading Map](#-reading-map)
 - [Contributing](#contributing)
 - [Cite This Repository](#cite-this-repository)
@@ -121,7 +116,7 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 **[2026/05/01] [V0.1] Initial release.**
 
 - Created a focused navigation list for long-range interactions in MLFFs / MLIPs.
-- Added first taxonomy, software links, and dataset links.
+- Added first taxonomy and dataset links.
 - PRs are welcome for missing methods, benchmarks, and reproducibility notes.
 
 ---
@@ -217,25 +212,6 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 | QMugs | Drug-like conformers with quantum properties | [paper](https://doi.org/10.1038/s41597-022-01390-7) |
 | Water / ions / interfaces | Critical stress test for electrostatics, dielectric response, and finite-size artifacts | See LES and DPLR benchmark papers |
 | Polar crystals / ferroelectrics | Born effective charge and dielectric-response tests | See LES-BEC and related response-property work |
-
----
-
-## 🛠️ Software Ecosystem
-
-| Project | Use in long-range MLFF workflows |
-|---|---|
-| [DeepMD-kit](https://github.com/deepmodeling/deepmd-kit) | Deep Potential models, DPLR-style long-range electrostatics, production MD. |
-| [CACE](https://github.com/BingqingCheng/cace) | CACE descriptor + LES / long-range modules. |
-| [SOG-Net](https://github.com/DuktigYajie/SOG-Net) | Deep-SOG and CACE-SOG implementations. |
-| [MACE](https://github.com/ACEsuit/mace) | Strong short-range equivariant baseline; used as host model for long-range augmentation. |
-| [NequIP](https://github.com/mir-group/nequip) / [Allegro](https://github.com/mir-group/allegro) | Equivariant short-range baselines; useful for testing long-range add-ons. |
-| [CHGNet](https://github.com/CederGroupHub/chgnet) | Charge-informed graph network baseline in materials. |
-| [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack) | Modular atomistic ML toolkit with MD integration. |
-| [AIMNetCentral](https://github.com/isayevlab/aimnetcentral) | Molecular MLIP toolkit with charges, D3, DSF/Ewald Coulomb, ASE and PySisyphus calculators. |
-| [DMFF](https://github.com/deepmodeling/DMFF) | Differentiable molecular force fields and long-range molecular mechanics terms. |
-| [ASE](https://gitlab.com/ase/ase) | Glue layer for calculators, datasets, optimizers, and MD. |
-| [LAMMPS](https://github.com/lammps/lammps) | Production MD backend; check model-specific pair styles/interfaces. |
-| [OpenMM](https://github.com/openmm/openmm) | Production MD engine for PME/dispersion/polarization and ML/MM integration. |
 
 ---
 
