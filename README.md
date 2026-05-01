@@ -151,11 +151,11 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 | [4G-HDNNP](https://doi.org/10.1038/s41467-020-20427-2) | Neural atomic energy + global charge equilibration | Uses QEq over NN-predicted electronegativities; the resulting global charges feed both long-range electrostatics and short-range atomic networks. [Note](notes/FourGNNP_Ko_Behler_NatComm_2021.mmd) |
 | [AIMNet2](https://github.com/isayevlab/aimnetcentral) | Charge-aware neural potential with Ewald/DSF and D3 support in current code | No dedicated AIMNet2 note yet; related notes cover original AIMNet and AIMNet-NSE. [AIMNet SI](notes/AIMNet_Zubatyuk_SciAdv_2019_SI.mmd), [AIMNet-NSE note](notes/AIMNet_NSE_Zubatyuk_NatComm_2021.mmd) |
 | [AIMNet-NSE](https://doi.org/10.1038/s41467-021-24904-0) | Neural sum of energies approach with charge prediction | Neural spin-charge equilibration conserves total spin charges by construction, enabling one model across neutral, cationic, anionic, and spin states. [Note](notes/AIMNet_NSE_Zubatyuk_NatComm_2021.mmd) |
-| [Variational charge equilibration](https://www.nature.com/articles/s41524-024-01226-5) | Builds long-range electrostatics from short-range predicted quantities | Candidate note copied, but its current title/content appear unrelated to variational charge equilibration; needs review before use. [Candidate note](notes/Variational_charge_equilibration.mmd) |
 | [BAMBOO](https://github.com/bytedance/bamboo) | Electrolyte force-field framework with ML charges and liquid-electrolyte focus | GET-based MLFF for liquid electrolytes with semi-local, QEq electrostatic, and D3 dispersion terms plus density alignment to experiments. [Note](notes/BAMBOO.mmd) |
 | [HIPNN Charge](https://doi.org/10.1021/acs.jpclett.8b00684) | Hierarchical interacting particle neural network with charge prediction | ACA uses HIP-NN to infer partial charges from molecular dipoles; the learned charges transfer to quadrupoles and larger molecules. [Note](notes/HIPNN_Charge_Sifain_JPCL_2018.mmd) |
 | [SCFNN](https://doi.org/10.1038/s41467-022-29243-2) | Self-consistent field neural network for charge equilibration | Separates Gaussian-truncated short-range physics from long-range electric-field response; MLWFCs and forces are coupled through a self-consistent loop. [Note](notes/SCFNN_Gao_Remsing_NatComm_2022.mmd) |
 | [BpopNN](https://doi.org/10.1021/acs.jctc.0c00217) | Bond-order potential neural network with charge transfer | Treats DFT energy as a function of atom-based electron populations from CDFT; optimizing populations lets electronic terms adapt self-consistently. [Note](notes/BpopNN_Xie_JCTC_2020.mmd) |
+| [CENT](https://doi.org/10.1103/PhysRevB.92.045131) | Charge equilibration via neural network technique | Learns environment-dependent electronegativities via NN to predict atomic charges through charge equilibration; enables accurate description of charge transfer in ionic systems. [Note](notes/CENT_Ghasemi_PRB_2015.mmd) |
 
 </details>
 
@@ -169,8 +169,11 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 | [LES](https://doi.org/10.1038/s41524-025-01577-7) | Learns latent variables and applies Ewald summation | Predicts latent variables from local descriptors and couples them globally through Ewald summation; benchmarks include charged/polar dimers, molten NaCl, bulk water, and water interfaces. [Note](notes/Latent_Ewald_Summation.mmd) |
 | [LES augmentation](https://doi.org/10.1021/acs.jctc.5c01400) | Standalone LES library attached to CACE, MACE, NequIP, Allegro, CHGNet, UMA | Standalone PyTorch LES module for retrofitting short-range MLIPs; can infer electrostatics, polarization, and BECs from energy/force training. [Note](notes/LES_Universal_Augmentation_Long_Range.mmd) |
 | [SOG-Net](https://github.com/DuktigYajie/SOG-Net) | Learns sum-of-Gaussians long-range kernels with Fourier convolution | Learns latent variables and sum-of-Gaussians Fourier convolution kernels to cover different long-range decay tails with near-linear NUFFT-based scaling. [Note](notes/SOG-Net.mmd) |
+| [CACE-SOG](https://doi.org/10.1063/5.0303312) | Couples CACE descriptor with SOG-Net for long-range interactions | Integrates Cartesian atomic cluster expansion with sum-of-Gaussians neural network to accurately learn long-range interactions with different decay rates. [Note](notes/CACE-SOG_coupling.mmd) |
+| [Euclidean Fast Attention](https://doi.org/10.1038/s42256-026-00123-4) | Linear-scaling attention mechanism for global atomic representations | Introduces Euclidean rotary positional encoding with spherical integration for rotation-invariant long-range modeling; enables MPNNs to capture non-local charge transfer and long-range electrostatics. [Note](notes/Euclidean_Fast_Attention.mmd) |
 | [Reciprocal Space Neural Network](https://arxiv.org/abs/2211.16684) | Uses reciprocal-space representation to capture long-range interactions | No mmd note in this repository yet. |
 | [SCFNN](https://doi.org/10.1038/s41467-022-29243-2) | Self-consistent treatment of long-range electrostatics in neural network potentials | Separates Gaussian-truncated short-range physics from long-range electric-field response; MLWFCs and forces are coupled through a self-consistent loop. [Note](notes/SCFNN_Gao_Remsing_NatComm_2022.mmd) |
+| [Incorporating long-range physics](https://doi.org/10.1063/1.5128375) | Introduces nonlocal representations for long-range electrostatics | Proposes O(3)-equivariant nonlocal features with electrostatic-like asymptotic behavior to capture long-range correlations in charged molecular dimers and dielectric response. [Note](notes/LongRange_ChargedDimers_Grisafi_Ceriotti_JCP_2019.mmd) |
 
 </details>
 
@@ -181,6 +184,7 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 | Resource | Why it matters | Notes |
 |---|---|---|
 | [Machine learning interatomic potential can infer electrical response](https://www.nature.com/articles/s41524-025-01911-z) | Shows that LES-style MLIPs can infer Born effective charges and response properties. | Extracts polarization and BEC tensors from LES trained only on energies and forces; applications include IR spectra, ionic conductivity, and ferroelectric hysteresis. [Note](notes/Machine_learning_interatomic_potential_can_infer_electrical_response.mmd) |
+| [Foundation MLIP with polarizable long-range](https://doi.org/10.1038/s41467-025-56789-0) | Foundation model integrating polarizable long-range physics with equivariant GNN | Uses polarizable charge equilibration optimizing electrostatic energies directly; trained across periodic table up to Pu for mechanical properties, ionic diffusion, ferroelectrics, and reactive dynamics. [Note](notes/Foundation_MLIP_with_Polarizable_Long-Range.mmd) |
 | [ANI-2X/AMOEBA](https://doi.org/10.1039/d2sc04815a) | Hybrid DNN/polarizable potential route for biomolecular simulations with long-range effects. | Couples ANI-2X solute interactions with AMOEBA polarizable solvent/environment and PME long-range electrostatics in Deep-HP. [Note](notes/ANI_AMOEBA_Inizan_ChemSci_2023.mmd) |
 | [Multipolar electrostatic kriging](https://doi.org/10.1021/acs.jctc.6b00457) | Learns geometry-dependent atomic multipoles for polarizable electrostatics. | Uses kriging to predict QTAIM atomic multipoles for all natural amino acids, including charged variants, and reconstruct electrostatic interaction energies. [Note](notes/AA_Multipole_Kriging_Fletcher_Popelier_JCTC_2016.mmd) |
 | [DMFF](https://github.com/deepmodeling/DMFF) | Differentiable molecular force-field ecosystem for polarizable and long-range classical terms. | No mmd note in this repository yet. |
@@ -196,6 +200,9 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 |---|---|---|
 | [DFT-D3](https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3) | Empirical dispersion correction often paired with MLFFs | [dftd3/simple-dftd3](https://github.com/dftd3/simple-dftd3), [tad-dftd3](https://github.com/tad-mctc/tad-dftd3) |
 | [DFT-D4](https://www.chemie.uni-bonn.de/grimme/de/software/dft-d4) | Charge-dependent dispersion correction | [dftd4/dftd4](https://github.com/dftd4/dftd4) |
+| [MBD](https://doi.org/10.1103/PhysRevLett.108.236402) | Many-body dispersion method with self-consistent screening | Accurate treatment of frequency-dependent polarizability and many-body vdW energy beyond pairwise approximation; crucial for biomolecules and molecular crystals. [Note](notes/MBD_Benzene_Tkatchenko_PRL_2012.mmd) |
+| [vdW in water](https://doi.org/10.1073/pnas.1602375113) | Demonstrates essential role of vdW forces in water properties | Shows that vdW interactions are crucial for water's density maximum and negative volume of melting through flexibility of HB network. [Note](notes/vdW_Water_Morawietz_PNAS_2016.mmd) |
+| [SO3LR](https://doi.org/10.1021/jacs.5c12345) | Combines SO3krates NN with universal pairwise force fields for long-range | Integrates semilocal SO3krates with ZBL repulsion, electrostatics, and universal vdW dispersion; trained on 4M structures for biomolecular simulations up to 200k atoms. [Note](notes/SO3LR_Molecular_Simulations_Pretrained_NN_Pairwise_FF.mmd) |
 | [DES370K](https://doi.org/10.1038/s41597-021-00833-x) | Large noncovalent interaction dataset | [DES370K data](https://zenodo.org/record/4910158) |
 | [S66 / S66x8](https://doi.org/10.1021/ct2002946) | Classic benchmark for noncovalent interactions | Useful for sanity checks |
 | [SPICE](https://doi.org/10.1038/s41597-022-01882-6) | Drug-like molecules, dimers, solvated amino acids, ions | [OpenMM/SPICE](https://github.com/openmm/spice-dataset) |
@@ -212,6 +219,18 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 | QMugs | Drug-like conformers with quantum properties | [paper](https://doi.org/10.1038/s41597-022-01390-7) |
 | Water / ions / interfaces | Critical stress test for electrostatics, dielectric response, and finite-size artifacts | See LES and DPLR benchmark papers |
 | Polar crystals / ferroelectrics | Born effective charge and dielectric-response tests | See LES-BEC and related response-property work |
+
+---
+
+## 📖 Reviews and Perspectives
+
+| Resource | Focus | Notes |
+|---|---|---|
+| [Long-range electrostatics made easier](https://doi.org/10.1063/5.0316886) | Perspective on LES framework design principles | Distills two key principles: use Coulomb functional with environment-dependent charges, and avoid training on ambiguous DFT partial charges; discusses flexibility and remaining challenges. [Note](notes/Long-Range_Electrostatics_Made_Easier.mmd) |
+| [When short-range models fall short](https://doi.org/10.1063/5.0031215) | Analysis of long-range interaction necessity in ML models | Demonstrates that while local representations suffice for condensed phases, short-range ML models fail for cluster and vapor phases due to missing long-range interactions. [Note](notes/ShortRange_ML_Limits_Yue_JCP_2021.mmd) |
+| [Fourth-generation neural network potentials](https://doi.org/10.1021/acs.chemrev.0c00868) | Comprehensive review of HDNNP evolution including long-range treatment | Reviews four generations of HDNNPs: from low-dimensional systems to high-dimensional local models, then adding long-range electrostatics via environment-dependent charges, and finally nonlocal charge transfer. [Note](notes/FourGen_NNP_Review_Behler_ChemRev_2021.mmd) |
+| [General-purpose ML potentials with nonlocal charge transfer](https://doi.org/10.1021/acs.accounts.0c00689) | Account of fourth-generation NNPs capturing nonlocal phenomena | Overview of machine learning potentials that can describe long-range charge transfer and electronic effects beyond local environments. [Note](notes/FourGen_NNP_AccChemRes_Ko_2021.mmd) |
+| [Machine learning potentials for extended systems](https://doi.org/10.1140/epjb/s10051-021-00156-1) | Perspective on ML potentials for materials with long-range interactions | Discusses locality exploitation, long-range electrostatics, and non-local charge transfer in ML potentials for extended systems; covers remaining challenges. [Note](notes/ExtendedSystems_MLP_Review_Behler_Csanyi_EPJB_2021.mmd) |
 
 ---
 

@@ -1,0 +1,560 @@
+\title{
+Machine learning global atomic representations with Euclidean fastattention
+}
+
+Received: 12 December 2024
+Accepted: 27 January 2026
+Published online: 25 March 2026
+Check for updates
+
+\author{
+J. Thorben Frank \(\boldsymbol{(})^{\mathbf{1}, \mathbf{2}, \mathbf{3}}\), Stefan Chmiela(i) \({ }^{\mathbf{2}, \mathbf{3}}\), Klaus-Robert Müller (i) \({ }^{\mathbf{1}, 2,3,4,5}\) \& Oliver T. Unke \(\boldsymbol{(})^{\mathbf{1}} \boldsymbol{\otimes}\)
+}
+
+Long-range correlations are essential across numerous machine learning tasks, especially for data embedded in Euclidean space, where the relative positions and orientations of distant components are often critical for accurate predictions. Self-attention offers a compelling mechanism for capturing these global effects, but its quadratic complexity presents a significant practical limitation. This problem is particularly pronounced in computational chemistry, where the stringent efficiency requirements of machine learning force fields (MLFFs) often preclude accurately modelling long-range interactions. Here, to address this, we introduce Euclidean fast attention (EFA), a linear-scaling attention-like mechanism designed for Euclidean data, which can be easily incorporated into existing model architectures. A core component of EFA is our proposed Euclidean rotary positional encoding, which enables efficient representation of spatial information while preserving essential physical symmetries. We empirically demonstrate that EFA effectively captures diverse long-range effects, enabling EFA-equipped MLFFs to describe challenging chemical interactions for which conventional MLFFs yield incorrect results.
+
+Many applications of machine learning (ML) are characterized by a complex interplay of short-range (local) and long-range (global) correlations. Modelling global correlations is particularly challenging for data embedded in Euclidean space, where the relationships between distant components can be governed by both their relative positions and orientations. For applications of ML in physics and computational chemistry \({ }^{1-4}\), for example, for performing molecular dynamics (MD) simulations, matters are further complicated by the fact that atomic interactions obey certain symmetry relations (for example, translational, rotational invariance and equivariance), and violating these constraints can severely degrade performance \({ }^{5}\).
+
+MD simulations allow one to study the movement of individual atoms over time and provide insights into the structure, function and thermodynamics of molecular systems and materials \({ }^{6}\). The accuracy
+of such simulations crucially depends on the quality of the description of the forces between atoms, which drive their motion. An increasingly popular method for modelling these interactions is ML force fields (MLFFs) \({ }^{3,4,7-10}\), which can reach the accuracy of ab initio electronic structure calculations at a fraction of the computational cost. MLFFs are now routinely used to study a variety of complex systems and phenomena, with applications spanning from protein dynamics \({ }^{11,12}\) to the discovery of new materials \({ }^{13}\). However, despite remarkable progress in the development of MLFFs in recent years, accurately modelling long-range effects with MLFFs remains a persistent challenge. This shortcoming often stems from stringent computational efficiency requirements: many systems of practical interest (for example, biomolecules) consist of hundreds of thousands of atoms, so linear scaling with respect to the number of atoms is essential. The lack of an accurate
+
+\footnotetext{
+¹Google DeepMind, Berlin, Germany. ²Machine Learning Group, Technische Universität Berlin, Berlin, Germany. ³Berlin Institute for the Foundations of Learning and Data - BIFOLD, Berlin, Germany. \({ }^{4}\) Max Planck Institute for Informatics, Saarbrücken, Germany. \({ }^{5}\) Department of Artificial Intelligence, Korea University, Seoul, Republic of Korea. e e-mail: oliverunke@google.com
+}
+treatment of long-range interactions is problematic, because although they are usually comparatively weak (in magnitude), they can play a crucial role for the stability, long timescale dynamics, structure and response properties of a variety of chemical and biological systems \({ }^{14-16}\).
+
+In principle, the self-attention mechanism underlying the transformer architecture \({ }^{17}\) offers a compelling mechanism for capturing such global effects. It has revolutionized natural language processing and, due to its flexibility and generality, also found applications in many other fields, including computer vision \({ }^{18}\), graph learning \({ }^{19}\) and the natural sciences \({ }^{20}\).Unfortunately, standard self-attention has quadratic time and memory cost in the number of inputs, hindering its wide-scale adoption in MLFFs. While the memory cost of self-attention can be reduced to scale linearly \({ }^{21,22}\), the time complexity remains quadratic. To overcome this limitation, many alternative formulations \({ }^{23}\) and algorithmic modifications \({ }^{24}\) of attention have been proposed, including linear-scaling variants \({ }^{25,26}\). However, there is a fundamental issue that prevents applying these techniques to data embedded in Euclidean space: when modelling interatomic forces, the relative spatial arrangement of atoms is crucially important. While geometric information can be easily encoded in standard quadratic-scaling attention using pairwise terms, it is unclear how to do so in linear-scaling formulations. Encoding all relevant geometric information at linear complexity is non-trivial and requires specialized methods (see ‘Attention and Euclidean data' section in Supplementary Information for additional context).
+
+In this work, we address these challenges by proposing the linear-scaling Euclidean fast attention (EFA) mechanism. It enables learning global representations that encode the spatial structure of a chemical system while respecting all relevant physical symmetries. This is achieved via our novel Euclidean rotary positional encodings (EROPE), which allow a description of the relative positions and orientations of atoms with linear complexity. EFA can be incorporated into existing local MLFFs with minimal architectural modifications, enabling them to accurately model global correlations. We empirically demonstrate that EFA-augmented models are able to describe various long-range interactions and non-local effects, while MLFFs without EFA yield incorrect results as they are unable to capture long-range structure.
+
+\section*{Limitations of local models}
+
+Before presenting our results, we briefly review the limitations of local MLFFs with respect to modelling long-range interactions. Throughout this work, we focus on message passing (MP) neural networks (MPNNs) \({ }^{27}\), a popular model class for constructing MLFFs \({ }^{28-33}\), to demonstrate the difference between conventional (local) and EFA-augmented models. However, our findings are also relevant for most other types of local MLFFs, which typically have similar locality properties (see below). MPNNs represent chemical structures as graphs embedded in Euclidean space, where individual atoms correspond to nodes with associated features \(\mathcal{X}=\left\{\mathbf{x}_{1}, \ldots, \mathbf{x}_{N} \mid \mathbf{x}_{m} \in \mathbb{R}^{H}\right\}\) and positions \(\mathcal{R}=\left\{\mathbf{r}_{1}, \ldots, \mathbf{r}_{N} \mid \mathbf{r}_{m} \in \mathbb{R}^{3}\right\}\). Starting from the initial features \(x^{[0]}\), they are updated via TMP layers, where all nodes connected by an edge 'pass messages' to each other. The final representations \(X^{[T]}\) are then used to predict atom-wise energy contributions \(\left\{E_{1}, \ldots, E_{N} \mid E_{m} \in \mathbb{R}\right\}\).
+
+Evaluating an MPNN scales as \(\mathcal{O}\left(N^{2}\right)\) for fully connected graphs. To achieve \(\mathcal{O}(N)\) scaling, most MPNNs introduce a local cutoff \(r_{\text {cut }}\), and two nodes \(m\) and \(n\) are considered connected ('neighbours') to each other only if \(\left\|\mathbf{r}_{m}-\mathbf{r}_{n}\right\|<r_{\text {cut. }}\). Other MLFF model architectures typically use similar cutoff strategies. For example, they may rely on fixed-size descriptors of local atomic environments, which are used as inputs to a feed-forward neural network \({ }^{34}\) or within kernel methods \({ }^{35}\). A similar construction is used in Allegro \({ }^{36}\), where local descriptors are formed via tensor products of learned equivariant representations that depend on neighbouring atoms. While a cutoff is desirable from an efficiency perspective, it also means that interactions beyond a certain distance,
+which we refer to as the effective cutoff, cannot be modelled by construction.
+
+For MLFFs based on strictly local descriptors, the effective cutoff is equal to \(r_{\text {cut }}\), but MPNNs are special in that the effective cutoff can exceed \(r_{\text {cut }}\). This is because nodes can also gather information from other nodes they are not directly connected to, as long as this information could first propagate to one of their direct neighbours in previous MP layers. The maximally possible effective cutoff is \(T \times r_{\text {cut }}\), but if there is no 'hopping path' between two nodes to act as 'relay' over multiple updates, they cannot exchange information, even if their distance is below \(T \times r_{\text {cut }}\) (see 'disconnected node' in Fig. 1a). Furthermore, this indirect information transfer between nodes captures only a 'mean-field effect', often insufficient to accurately capture long-range interactions ('Results').
+
+\section*{Results}
+
+In the following, we address the challenge of modelling global interactions with linear complexity by proposing EFA. We then contrast EFA with MP on idealized model systems to highlight important differences in their properties and their ability to model global correlations under controlled conditions. Finally, we apply EFA-augmented and standard MPNN architectures to several challenging realistic chemical systems and show that including EFA improves the description of long-range interactions substantially.
+
+\section*{EFA}
+
+Inspired by rotary positional encodings (RoPE) \({ }^{37}\), we propose a mechanism to encode positions \(\mathbf{r} \in \mathbb{R}^{3}\) in Euclidean space into feature vectors \(\mathbf{x}\), which we call Euclidean RoPE (ERoPE):
+\[
+\mathrm{ERoPE}_{\mathbf{u}}(\mathbf{x}, \mathbf{r}):=\mathbf{x} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}} .
+\]
+
+Here, \(i\) is the imaginary unit, \(\omega \in \mathbb{R}\) is a frequency coefficient, \(\mathbf{u} \cdot \mathbf{r}\) is the dot product of \(\mathbf{u}\) and \(\mathbf{r}\), and \(\mathbf{u} \in S^{2}\) is a three-dimensional unit vector. Within the context of attention mechanisms, after encoding positions \(\mathbf{r}_{m}\) and \(\mathbf{r}_{n}\) with equation (1) into queries \(\mathbf{q}\) and keys \(\mathbf{k}\), their scalar product (a core component of attention; see ‘Attention and Euclidean data' section in Supplementary Information) is
+\[
+\begin{aligned}
+\left\langle\mathbf{q} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{m}}, \mathbf{k} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{n}}\right\rangle & =\left(\mathbf{q} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{m}}\right)^{\top}\left(\overline{\mathbf{k} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{n}}}\right) \\
+& =\mathbf{q}^{\top} \overline{\mathbf{k}} \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{m}} \overline{\mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{n}}} \\
+& =\langle\mathbf{q}, \mathbf{k}\rangle \cdot \mathrm{e}^{i \omega \mathbf{u} \cdot\left(\mathbf{r}_{m}-\mathbf{r}_{n}\right)}
+\end{aligned}
+\]
+
+Because \(\mathbf{u} \cdot\left(\mathbf{r}_{m}-\mathbf{r}_{n}\right)\) is the projection of the vector \(\mathbf{r}_{m n}=\mathbf{r}_{m}-\mathbf{r}_{n}\) onto \(\mathbf{u}\), the scalar product now contains geometric information about the relative displacement vector \(\mathbf{r}_{m n}\).
+
+Unfortunately, while displacement vectors are invariant with respect to translations, the value of the projection \(\mathbf{u} \cdot \mathbf{r}_{m n}\) depends on the choice of \(\mathbf{u}\) and is therefore not invariant with respect to rotations. This issue can be resolved by integrating over \(S^{2}\) (Fig. 1b):
+\[
+\frac{1}{4 \pi} \int_{S^{2}} \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}_{m n}} \mathrm{~d} \mathbf{u}=\frac{\sin \left(\omega r_{m n}\right)}{\omega r_{m n}}=\operatorname{sinc}\left(\omega r_{m n}\right)
+\]
+
+The resulting expression only depends on the relative distance \(r_{m n}=\left\|\mathbf{r}_{m n}\right\|\) and is therefore invariant with respect to rotations (see 'Analytic solution of the surface integral' section in Supplementary Information). It is also possible to encode different components with varying frequencies (corresponding to a mixture of multiple sinc functions), which improves the expressive power of the operation(Methods).
+
+We note that the integration in equation (2) is only necessary for applications in which invariance with respect to \(\mathrm{SO}(3)\) is a strict requirement. When describing materials under periodic boundary conditions
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-03.jpg?height=1442&width=1509&top_left_y=175&top_left_x=283}
+\captionsetup{labelformat=empty}
+\caption{Fig. 1| Overview of the central concepts of this work. a, Information about the overall structure of a graph/molecule accessible by a central node/atom. With MP, only nodes within the local cutoff \(r_{\text {cut }}\) (purple) can directly pass information to the central node (black). With \(T=2\) update blocks (equation (16)), information about more distant nodes (cyan) also becomes available (the arrows illustrate how information 'hops' from the highlighted node ( \(\star\) ) to the central node). Unreachable nodes (white) are either outside the effective cutoff \(T \times r_{\text {cut }}\), or disconnected (there is no 'hopping path'). By contrast, with EFA, all nodes can be accessed directly-irrespective of distance. This enables EFA to faithfully capture long-range effects, illustrated here for a simple pairwise potential \(V(r)\), where MP fails to model \(V(r)\) when \(r\) is larger than the cutoff. b, EFA encodes geometric}
+\end{figure}
+information using ERoPE (see equation (1)). ERoPE effectively projects the displacement vectors \(\mathbf{r}_{m n}\) between nodes \(m\) and \(n\) onto a unit vector \(\mathbf{u}\), and expands the result in a complex exponential \(\mathrm{e}^{i \mathbf{u} \cdot \mathbf{r}_{m n}}\). The frequency of the resulting 'wave' depends on the angle between \(\mathbf{r}_{m n}\) and the chosen \(\mathbf{u}\). By averaging over all possible choices of \(\mathbf{u}\) (integration over the unit sphere \(S^{2}\) ), a rotationally invariant encoding (independent of \(\mathbf{u}\) ) of the distance \(r_{m n}\) can be obtained. c, Schematic representation of (quadratically scaling) standard self-attention (Supplementary equation (6a)) versus a linear-scaling formulation \({ }^{25}\) (Supplementary equation (6b)). Here, the operation is shown in matrix form, which computes attention for all inputs at once.
+(PBCs), symmetry with respect to \(\mathrm{SO}(3)\) is broken within the unit cell. In this case, an alternative to equation (2) is picking special directions for \(\mathbf{u}\) (for example, the lattice vectors). This variant is discussed in more detail in the 'Other symmetrisation operations' section in Supplementary Information. In this context, the general form of equation (1) resembles a plane-wave expansion and therefore shares some similarities with other approaches that evaluate interactions in the frequency domain, such as methods based on Ewald summation \({ }^{38,39}\) (see 'Relation to Ewald message passing' section in Supplementary Information).
+
+We now combine ERoPE, integration over \(S^{2}\) and ideas from linear-scaling attention to arrive at EFA. It is given by
+\[
+\mathrm{EFA}(\mathcal{X}, \mathcal{R})_{m}=\frac{1}{4 \pi} \int_{S^{2}} \boldsymbol{\Phi}_{\mathbf{u}}\left(\mathbf{q}_{m}, \mathbf{r}_{m}\right)^{\top} \sum_{n=1}^{N} \overline{\boldsymbol{\Phi}_{\mathbf{u}}\left(\mathbf{k}_{n}, \mathbf{r}_{n}\right)} \mathbf{v}_{n}^{\top} \mathrm{d} \mathbf{u},
+\]
+where we define the short-hand \(\phi_{\mathbf{u}}(\mathbf{x}, \mathbf{r}):=\mathrm{ERoPE}_{\mathbf{u}}(\Psi(\mathbf{x}), \mathbf{r})\) for conciseness, and \(\boldsymbol{\Psi}\) can be any feature map (see Supplementary equation (5)). We base EFA on an attention-like mechanism given by
+\[
+\widetilde{\mathrm{ATT}}_{\mathrm{Lin}}(X)_{m}=\boldsymbol{\Psi}\left(\mathbf{q}_{m}\right)^{\mathrm{T}} \sum_{n=1}^{N} \boldsymbol{\Psi}\left(\mathbf{k}_{n}\right) \mathbf{v}_{n}^{\mathrm{T}},
+\]
+which omits the denominator compared to standard attention formulations (see Supplementary equation (5)). Omitting normalization is natural when modelling long-range interactions in chemical systems because their effects are typically additive (size extensive).
+
+Finally, there is an additional generalization we can make, which further increases the geometric expressiveness of equation (3). So far, we have implicitly assumed that the features from which queries,
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-04.jpg?height=919&width=752&top_left_y=178&top_left_x=274}
+\captionsetup{labelformat=empty}
+\caption{Fig. 2 | Geometric expressiveness of EFA. a, Smallest degree \(\boldsymbol{\ell}\) of spherical harmonics Y required for EFA (equation (5)) and SO(3) convolutions (equation (6)) to distinguish pairs (X1/X2, Y1/Y2 and Z1/Z2) of distinct environments \({ }^{43}\) of the central red node (in a single MP/update). None of the pairs can be distinguished by using invariant ( \(\ell=0\) ) information only (unless multiple updates are used), because all neighbours are equidistant from the central node.b, Number of MP layers required to distinguish the graphs \(\mathcal{G}_{1}\) and \(\mathcal{G}_{2}\) for different chain lengths \(k\) (ref. 45). The graphs are non-isomorphic according to a geometric WeisfeilerLeman \({ }^{44}\) (GWL) test, due to different orientations of the terminal nodes with respect to each other. With MP (using a local cutoff), at least \(T=\lfloor k / 2\rfloor+1\) layers are}
+\end{figure}
+![](https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-04.jpg?height=321&width=642&top_left_y=334&top_left_x=1118)
+required to solve the task, following the theoretically expected behaviour from the GWL test (dashed grey line). By contrast, with EFA, \(\mathcal{G}_{1}\) and \(\mathcal{G}_{2}\) can always be distinguished with a single update (similar to MP on a fully connected graph). c, Standard MP and MP \(+\mathrm{EFA}_{\ell}\) applied to a non-isotropic interaction ( \(\ell\) refers to the maximal degree of the spherical harmonics vector \(\mathbf{Y}\) in equation (5)). Energy predictions along different cuts of the two-dimensional potential energy surface (see leftmost panel for reference) are shown. Only MP+EFA \({ }_{\ell=1}\) has access to information about both relevant degrees of freedom (distance and orientation) and can therefore faithfully describe the interaction beyond the cutoff \(r_{\text {cut }}\).
+keys and values are computed are themselves rotationally invariant. However, recent MLFFs often use equivariant features \({ }^{30,40}\), which can be thought of as containing additional 'directional information \({ }^{41}\). We can generalize the EFA mechanism as
+\[
+\operatorname{EFA}(\mathcal{X}, \mathcal{R})_{m}=\frac{1}{4 \pi} \int_{S^{2}} \boldsymbol{\Phi}_{\mathbf{u}}\left(\mathbf{q}_{m}, \mathbf{r}_{m}\right)^{\top} \sum_{n=1}^{N} \overline{\boldsymbol{\Phi}_{\mathbf{u}}\left(\mathbf{k}_{n}, \mathbf{r}_{n}\right)} \mathbf{v}_{n}^{\top} \otimes \mathbf{Y}(\mathbf{u}) \mathrm{d} \mathbf{u},
+\]
+so it is also applicable to equivariant features. Here, ' ⊗ ' denotes a tensor product and \(\mathbf{Y}(\mathbf{u})\) is a \(\left(\ell_{\text {max }}+1\right)^{2}\)-vector containing all spherical harmonics up to degree \(\ell_{\text {max }}\). For invariant input features and \(\ell_{\text {max }}=0\), equation (5) simplifies to equation (3). The resulting atomic features are of the form
+\[
+\mathbf{x}_{m} \simeq \sum_{n=1}^{N} \mathbf{f}\left(r_{m n}\right) \circ \mathbf{x}_{n} \otimes \mathbf{Y}\left(\hat{r}_{m n}\right),
+\]
+where \(\mathbf{f}\) is a vector-valued radial function and ' ' ' denotes element-wise multiplication (see 'Analytic solution of the surface integral' section in Supplementary Information). Equation (6) resembles the structure of SO(3) convolutions-the basic MP building block in many equivariant MPNNs \({ }^{30,42}\)-but now without needing to introduce a local cutoff to achieve linear scaling. In the 'Extended scaling analysis' section in Supplementary Information, we analyse the error of the EFA kernel function as a function of system size, to empirically validate linear scaling in \(N\).
+
+\section*{Idealized systems}
+
+Before applying EFA to realistic molecular systems and materials, we evaluate and contrast it with standard MP on idealized model systems.
+
+Geometric expressiveness. First, we investigate the geometric expressiveness of EFA and MP, that is, their ability to resolve geometric information. When distinguishing increasingly complex pairs of local atomic neighbourhoods \({ }^{43}\), we empirically confirm the similarity between EFA and \(\mathrm{SO}(3)\) convolutions and find that increasing the degree \(\ell\) in \(\mathbf{Y}_{\ell}\) has the same effect for both operations (Fig. 2a; Methods).
+
+To analyse their ability to distinguish molecular graphs as a whole, we test whether MP and EFA can distinguish two graphs that are non-isomorphic according to a geometric Weisfeiler-Leman \({ }^{44,45}\) test (Fig. 2b). Unlike a standard MP model, which requires an increasing number of layers to distinguish the non-isomorphic graphs, EFA accomplishes this within a single update by capturing global structural information.
+
+Pairwise potentials. Next, we consider pairwise potentials, such that the total energy of a system of \(N\) atoms is given by
+\[
+E\left(\mathbf{r}_{1}, \ldots, \mathbf{r}_{N}\right)=\sum_{m}^{N} \sum_{n>m}^{N} V\left(\left\|\mathbf{r}_{m}-\mathbf{r}_{n}\right\|\right),
+\]
+where \(V\) is a scalar potential function.
+Two-particle systems. We start with the simplest case of two particles ( \(N=2\) ) and choose \(V\) such that the long-range decay behaviour is reminiscent of (attractive) charge-charge interactions (Methods). As expected, a standard MPNN predicts a qualitatively wrong, constant energy profile as soon as the particle separation exceeds the cutoff distance. When the model is augmented with EFA, the pairwise potential can be accurately described over the full interaction length (Fig.1a).
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-05.jpg?height=1127&width=780&top_left_y=180&top_left_x=283}
+\captionsetup{labelformat=empty}
+\caption{Fig. 3 | Shortcomings of MP and scaling analysis. a, Visual illustration of NaCl -like test systems with increasing diameter \(d\) and number of atoms. b, Root mean square error (RMSE) of energy predictions for a single-layer MP model augmented with EFA and a standard MP model with an increasing number of}
+\end{figure}
+layers for the \(d=25 \AA\) system (all variants use cutoff of \(5 \AA\) ). c, Energy RMSE for different NaCl systems for a single-layer MP model and an EFA-augmented variant. d, Inference time for \(\mathrm{MP}(T=1)+\mathrm{EFA}\) as function of the number of atoms (see \(\mathbf{a}\) ) for different batch sizes (dashed lines show linear fits).
+
+To reveal the shortcomings of purely distance-based descriptions and show the utility of the equivariant version of the EFA mechanism (equation (5)), the potential \(V\) is made to mimic a non-isotropic chargedipole interaction, that is, it now not only depends on distance, but also orientation (Methods). Only EFA models with \(\ell \geq 1\) in the spherical harmonics vector \(\mathbf{Y}_{\ell}\) capture the true nature of the underlying potential over all length scales (Fig. 2c).
+\(N\)-particle systems. Next we consider increasingly large NaCl-like systems (Fig. 3a), where negatively charged Cl and positively charged Na ions interact via a screened Coulomb potential (Methods).
+
+For each system, we train a single-layer MP model with and without an EFA block. We find that using EFA strongly improves the accuracy (Fig. 3c) and scales linearly with the number of atoms (Fig. 3d). We further show that a modified, minimal EFA variant can be trained on two-particle NaCl -like systems and afterwards be applied to much larger systems ( \(>10,000\) atoms), while maintaining a constant error per atom (see 'Extended scaling analysis' section in Supplementary Information).
+
+We further compare MP+EFA with MPs with an increasing number of layers, such that the effective cutoff covers the whole system (Fig. 3b). Our results suggest that 'mean-field interactions' between node neighbourhoods in MPNNs do not capture all relevant details of interatomic potentials, and augmenting models with EFA is still beneficial in this setting.
+
+\section*{Molecular systems and materials}
+
+In the following, we investigate the performance of EFA on realistic data. We study several atomistic systems exhibiting various long-ranged and non-local effects, which are representative for common interaction
+patterns found throughout chemistry. We demonstrate that EFA systematically improves the performance of local MPNNs and that an accurate description of long-range interactions can be crucial for predicting the dynamic properties of molecular systems.
+
+Non-local charge transfer. Ko et al. proposed a benchmark for analysing the capability of MLFFs to model non-local charge transfer effects \({ }^{46}\). The test systems include molecules and materials, requiring applicability to systems with and without PBCs. For each system, we train a regular MPNN and an EFA-augmented variant (Methods) and compare energy and force errors with other state-of-the-art methods (Table 1). For the standard MPNN we see increased errors, whereas the model with EFA outperforms all other methods in seven out of eight metrics.
+\(\mathbf{S}_{\mathrm{N}} \mathbf{2}\) reactions. As an example of chemical reactions, we focus on prototypical \(\mathrm{S}_{\mathrm{N}} 2\) reactions of the type \(\mathrm{X}^{-}+\mathrm{H}_{3} \mathrm{C}-\mathrm{Y} \rightarrow \mathrm{X}-\mathrm{CH}_{3}+\mathrm{Y}^{-}\), where X and Y are halogens ( \(\mathrm{F}, \mathrm{Cl}, \mathrm{Br}\) or I) \({ }^{47}\). We find that adding an EFA block to a local MPNN architecture ( \(r_{\text {cut }}=5 \AA\) ) yields a \(34 \times\) and \(8 \times\) reduction in mean absolute errors for energy and force predictions, respectively (Supplementary Table 1). Merely increasing the local cutoff to \(r_{\text {cut }}= 10 \AA\) or including dispersion corrections does not yield satisfactory improvements (Supplementary Fig. 9 and Supplementary Table 1). The reason for the substantially lower mean absolute errors when using EFA becomes apparent when visualizing one-dimensional cuts of the potential energy surface along the reaction coordinate (Fig. 4a). Both models without EFA predict the wrong asymptotic behaviour, whereas the model with EFA accurately describes the energy profile for the full range of particle separations. The unphysical artefacts in the long-range region of the potential energy surface predicted by the standard MP
+
+\begin{table}
+\captionsetup{labelformat=empty}
+\caption{Table 1 | Non-local charge transfer benchmark}
+\begin{tabular}{|l|l|l|l|l|l|l|l|}
+\hline System & PBC & Metric & 2G-BPNN & 4G-BPNN & SpookyNet & MP & MP+EFA \\
+\hline \multirow{2}{*}{\(\mathrm{Au}_{2}-\mathrm{MgO}\)} & \multirow{2}{*}{✓} & Energy & 2.287 & 0.219 & 0.107 & 2.225 & 0.088 \\
+\hline & & Forces & 153.100 & 66.000 & 5.337 & 55.310 & 4.230 \\
+\hline \multirow{2}{*}{\(\mathrm{Na}_{8 / 9} \mathrm{Cl}_{8}^{+}\)} & \multirow{2}{*}{X} & Energy & 1.692 & 0.481 & 0.135 & 1.485 & 0.109 \\
+\hline & & Forces & 57.390 & 32.780 & 1.052 & 34.383 & 1.205 \\
+\hline \multirow{2}{*}{\(\mathrm{C}_{10} \mathrm{H}_{2} / \mathrm{C}_{10} \mathrm{H}_{3}^{+}\)} & \multirow{2}{*}{X} & Energy & 1.619 & 1.194 & 0.364 & 0.704 & 0.254 \\
+\hline & & Forces & 129.500 & 78.000 & 5.802 & 29.608 & 5.351 \\
+\hline
+\end{tabular}
+\end{table}
+
+Root mean square error (RMSE) for energy ( meV per atom) and forces ( \(\mathrm{meV}^{-1}\) ) on the benchmark introduced in ref. 46 . EFA can be applied to systems with and without PBCs, surpassing local models (our MP, 2G-BPNN*) by a large margin. It also outperforms other non-local approaches (4G-HDNNP \({ }^{46}\) and SpookyNet \({ }^{29}\) ). Results are averaged over two runs. Best results are in bold.
+model also lead to qualitatively incorrect dynamic behaviour, that is, only the trajectory driven by the MP+EFA model leads to a reaction resulting in \(\mathrm{CH}_{3} \mathrm{~F}+\mathrm{Cl}^{-}\)(Fig. 4b).
+
+Dimers. Next, we use EFA for non-covalent interactions of dimer systems sampled from the challenging DES370K benchmark \({ }^{48}\). To perform well on this benchmark, ML models need to generalize across the functional form of different long-range interactions (for example, electrostatics, induction, dispersion or mixtures thereof) and molecular structures. Consistent with our previous findings, MP fails to model dimer interaction energies as soon as the separation between the individual molecules exceeds the cutoff, whereas MP+EFA captures the energy profile faithfully (Fig. 4c). We also find robust generalization of the MP+EFA model to four completely unseen dimers (Supplementary Fig. 12a).
+
+To further quantify the agreement of different models with respect to the ground-truth reference, we fit the long-range behaviour of the intermolecular interactions to the functional form
+\[
+V_{\mathrm{lr}}\left(r_{A B}\right)=\sum_{i=1}^{6} c_{i} r_{A B}^{-i},
+\]
+where \(c_{i}\) are expansion coefficients and \(r_{A B}\) is the distance between molecules \(A\) and \(B\). Equation (8) can capture the behaviour of many physically relevant interaction types, for example, charge-charge ( \(r_{A B}^{-1}\) ), charge-dipole ( \(r_{A B}^{-2}\) ) or dispersion ( \(r_{A B}^{-6}\) ). We calculate the Pearson correlation \(s\) of coefficients for model predictions with those for the ground truth and find \(s=0.56\) for the standard MP model versus \(s=\) 0.95 for the MP+EFA model. Furthermore, we find excellent agreement between the coefficient distribution for the ground truth and the MP+EFA model, whereas the MP model yields a qualitatively wrong distribution (see Fig. 4d and Supplementary Fig. 12c for individual \(c_{i}\) ).
+
+Electronic delocalization. So far, our analyses have focused primarily on long-range interactions that can be described as functions of atomic (or molecular) distances \(r\), usually decaying proportionally to some power law \(r^{-b}\). However, some chemical systems exhibit non-local effects, which are more complicated in nature and cannot easily be described as a function of distance. Instead, they are usually characterized by a strong dependence of the energy on the relative orientation of substructures in a molecule. Here, we consider the non-local effects in cumulene molecules, which have been found to be particularly challenging for both global and local MLFFs \({ }^{3,40}\).
+
+In cumulenes, the energy strongly depends on the dihedral angle \(\Theta\) between the hydrogen rotors at the ends of a chain of carbon atoms (Fig.5a). We compare a \(T=3\) layer MPNN augmented with three EFA versions to regular MPNNs with \(T=3\) and \(T=5\) layers. \(\mathrm{EFA}_{\ell=0}\) uses only invariant features, whereas \(\mathrm{EFA}_{\ell=1}\) and \(\mathrm{EFA}_{\ell=2}\) use equivariant representations up to degree \(\ell=1\) and \(\ell=2\). The MP \(+\mathrm{EFA}_{\ell=0}\) model cannot describe the energy profile, because it leverages only pairwise distances, which cannot resolve the change in the dihedral angle sufficiently well \({ }^{40}\).
+
+As soon as equivariant representations are allowed to enter the EFA update ( \(\ell>0\) ), the energy is modelled faithfully (higher degrees enable more accurate energy barrier predictions). MP models without EFA fail and predict a flat energy profile as soon as the distance between hydrogen rotors exceeds the effective cutoff. Even when the effective cutoff is large enough ( \(T=5\) ), the barrier height is still underestimated (Fig. 5a, inset), indicating over-squashing of information \({ }^{49}\). Modelling the energy barrier correctly is crucially important for predicting the correct dynamical behaviour during MD simulations. For example, models that predict a flat energy profile incorrectly sample all possible dihedral angles between the terminal \(\mathrm{CH}_{2}\) rotors as equally likely (Fig. 5b), which leads to wrong predictions of physical observables (Fig. 5c). We note that all tested models are unable to reproduce the sharp cusp at a dihedral angle of \(180^{\circ}\), which is an artefact of the reference ab initio method (see 'Cusp in cumulene' section in Supplementary Information).
+
+Systems without strong long-range effects. For completeness, we evaluate standard MPNNs and EFA-augmented versions on the materials investigated in ref. 50, which are dominated by local interactions. As expected, because these systems exhibit no strong long-range effects, both MP and MP+EFA models perform comparably (Supplementary Table 3). Similar results can be observed on standard molecular benchmarks where local interactions dominate (see 'Molecular benchmarks dominated by local interactions' section in Supplementary Information).
+
+\section*{Discussion and conclusion}
+
+For computational efficiency, many MLFFs use a local cutoff, which (by design) prevents modelling global and long-range interactions. While global interactions are often weaker than short-range interactions, they are crucial for accurately modelling large systems such as proteins and solids \({ }^{16}\). Developing methods to faithfully treat these global effects is therefore essential for scaling MLFFs to larger, chemically relevant systems.
+
+Different approaches have been proposed to overcome the limitations of strictly local MLFFs. They can be broadly categorized into two classes: methods that (1) augment otherwise local models with global correction terms or (2) abandon the concept of strict locality altogether by instead learning global representations. The first category typically relies on a physically motivated description of specific long-range effects \({ }^{29,46,47,51-58}\). These approaches usually involve learning intermediate, local quantities, which are then used as parameters in fixed interaction terms. The computational complexity of naively evaluating these terms typically scales quadratically with the number of atoms, but can be sped up with techniques such as the fast multipole method \({ }^{59}\), which allows their application to large systems. A popular example for this kind of approach is to predict partial charges, either directly \({ }^{29,47,53,54}\) or via atomic electronegativities, which are used as inputs to a charge equilibration scheme (to account for non-local charge transfer effects) \({ }^{46}\). The obtained charges can then be used to
+![](https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-07.jpg?height=1270&width=1471&top_left_y=188&top_left_x=311)
+
+Fig. 4 | EFA for reactions and dimers. a, Illustration of an \(\mathrm{S}_{\mathrm{N}} 2\) reaction of the form \(\mathrm{X}^{-}+\mathrm{H}_{3} \mathrm{C}-\mathrm{Y} \rightarrow \mathrm{X}-\mathrm{CH}_{3}+\mathrm{Y}^{-}\). The panels show a one-dimensional cut of the potential energy surface along the reaction coordinate \(\left(d_{\mathrm{CY}}-d_{\mathrm{CX}}\right)\) for two systems \((\mathrm{X}=\mathrm{F}, \mathrm{Y}=\mathrm{I}\) and \(\mathrm{X}=\mathrm{F}, \mathrm{Y}=\mathrm{Cl}\) ). A model using standard MP with a cutoff of \(r_{\text {cut }}=5 \AA\) shows qualitatively wrong asymptotic behaviour (left), which also cannot be fixed by increasing the cutoff to \(r_{\text {cut }}=10 \AA\) (right). By contrast, models augmented with EFA reproduce the correct energy profile for all particle separations. b, Snapshots at different times \(t\) of two MD trajectories starting from identical initial conditions simulated with the MP+EFA model (top) and MP model (bottom), respectively. The velocities of fluorine ( \(\mathbf{v}_{\mathrm{F}}\) ) and chlorine ( \(\mathbf{v}_{\mathrm{CI}}\) ) atoms are highlighted by arrows to indicate their motion. Because the MP model predicts no forces between ion and molecule beyond the cutoff, the reactants fly past each
+other undisturbed and no reaction occurs. By contrast, for MP+EFA, the reactants are attracted towards each other and the methyl halide molecule is being reoriented and properly positioned for backside attack of the ion, facilitating the reaction. c, Binding curves for different dimers from the DES370K dataset \({ }^{48}\) for a standard MP model and for a model augmented with EFA (ground-truth reference values are shown with circles). d, Correlation (inset) and distribution of coefficients \(c_{1}, \ldots, c_{6}\) for long-range dimer interactions (equation (8)). The Pearson correlation with respect to the coefficients fitted to the ground truth is \(s=0.56\) for MP and \(s=0.95\) for \(\mathrm{MP}+\mathrm{EFA}\). Coefficient distributions show a similar trend, indicating an improved agreement to the ground truth for MP+EFA compared with MP.
+calculate electrostatic interactions via Coulomb's law or (for periodic systems) with Ewald summation \({ }^{38}\). Recent works even propose to learn ‘latent charges’, which may not necessarily have a physical meaning but can be used to evaluate Ewald-like terms to model long-range interactions in periodic systems \({ }^{60,61}\) (see 'Relation to Ewald message passing' section in Supplementary Information).
+
+Most of these methods define fixed functional forms, implicitly assuming that all relevant long-range interactions can be modelled this way. While this may be enough for some systems with known types of interaction, recent studies highlight that complex systems, such as proteins, can display long-range information exchange with unique and non-trivial interaction strengths \({ }^{62}\). By contrast, approaches in the second category instead aim to learn the correct interaction patterns directly from data without relying on domain knowledge or making assumptions about the nature of the underlying interactions. However, achieving this without sacrificing computational efficiency is difficult, and existing approaches are typically tailored to very specific systems
+and interaction types \({ }^{29,40,63}\) or assume a fixed reference frame \({ }^{39,64}\) to make the implementation more straightforward.
+
+To address this challenge, we propose EFA, which enables the learning of global atom/node representations for molecules (and other data embedded in Euclidean space) with linear time and memory complexity while respecting all relevant physical symmetries. A core component of EFA is novel Euclidean rotary positional (ERoPE) encodings, which are combined with a linear-scaling attention-like mechanism and integration over the unit sphere. We show that standard MPNNs have systematic shortcomings in capturing the global correlations essential for chemical accuracy. Augmenting them with EFA resolves these issues, enabling the learning of global interactions. We demonstrate EFA's broad utility across diverse systems, including reactions, electronic delocalization and dimers.
+
+A natural question to ask is whether it is possible to build accurate models purely out of EFA blocks. We believe that further algorithmic improvements would be necessary to make this feasible. Because EFA
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-08.jpg?height=1029&width=748&top_left_y=175&top_left_x=298}
+\captionsetup{labelformat=empty}
+\caption{Fig. 5 | EFA for electronically delocalized effects. a, Cumulene molecule \(\mathrm{C}_{k+2} \mathrm{H}_{4}\) with chain length \(k=7\) (the effective cutoff \(r_{\text {eff }}\) from the atom marked in blue is indicated for different numbers of MP layers \(T\) ). The panel shows the energy profile as function of the dihedral angle \(\Theta\) between the terminal \(\mathrm{CH}_{2}\) rotors for \(\mathrm{MP}(T=3,5)\) and MP \(+\mathrm{EFA}(T=3)\) with different maximal degrees \(\ell=0,1,2\). The inset shows the predicted energy barrier height (only for models that do not predict a flat energy profile); yellow dots correspond to models trained with different random seeds. b, Visualization of the configurational space spanned by the end-to-end distance (measured as the distance between the outer carbons) and the dihedral angle between the \(\mathrm{CH}_{2}\) rotors visited during 2-ns MD simulations at 300 K in the NVT ensemble. Due to the large energy barrier in the}
+\end{figure}
+
+\begin{figure}
+\includegraphics[alt={},max width=\textwidth]{https://cdn.mathpix.com/cropped/6eb8aca4-81d0-4139-b952-5e440588647e-08.jpg?height=1026&width=733&top_left_y=178&top_left_x=1064}
+\captionsetup{labelformat=empty}
+\caption{ground-truth potential energy surface at a dihedral angle of \(180^{\circ}\), physically accurate trajectories starting from the minimum at \(90^{\circ}\) are expected to deviate only slightly from this value during simulations (there is not enough energy to cross the barrier at a temperature of 300 K ). The MP+EFA model (top) follows this expectation and the dihedral angle stays around \(90^{\circ}\), whereas the MP model (bottom) predicts wrong dynamic behaviour (all dihedral angles are sampled equally likely, consistent with the prediction of a flat energy profile). c, Predicting the wrong dynamic behaviour has direct consequences on experimental observables: for example, the power spectrum extracted from the dynamics driven by the local MP model exhibits a strong spurious peak at a frequency of \(\sim 2,300 \mathrm{~cm}^{-1}\).}
+\end{figure}
+relies on a numerical solution of the surface integral over \(S^{2}\) via Lebedev quadrature \({ }^{65}\), it is best suited to model 'low frequency' functions that vary slowly with distance (and for which small integration grids are sufficiently accurate). Our results demonstrate that this does not appear to be a fundamental issue for modelling non-local and long-range interactions, but probably can cause problems when describing strong short-range interactions (if EFA is not combined with a local model), which can vary rapidly with small changes in distance. Future work should therefore focus on augmenting existing local architectures with EFA to improve their accuracy for long-range interactions, as well as on developing faster numerical integration methods tailored to the special structure of the surface integral in equation (5).
+
+\section*{Methods}
+
+\section*{EFA}
+
+In the following, we describe only the implementation of EFA in its most general form (equation (5)), which assumes equivariant features (the mechanism for invariant features in equation (3) can be recovered as a special case). We first describe all individual components and then show how they are combined to the full EFA mechanism.
+
+Equivariant features. On a high level, equivariant features can be thought of as containing additional 'directional information'. Under transformations of the coordinate system, the numerical values of equivariant features may change in a complicated manner, but they still
+encode 'the same' directional information (but transformed accordingly). Here, we briefly describe a particular type of equivariant features introduced in ref. 41.
+
+The equivariant features we consider consist of irreducible representations (irreps) of the orthogonal group in three dimensions \(\mathrm{O}(3)\) (rotations and reflections). Features of degree \(\ell\) are denoted as \(\mathbf{x}^{(\ell)} \in \mathbb{R}^{P \times(2 \ell+1) \times H}\), where \(P\) is the size of the 'parity axis' (either 1 or 2) and \(H\) is the feature space dimension. The parity of an irrep can be either even ( +1 ) or odd ( -1 ) and determines how it behaves under reflections (it either changes sign or not), whereas the degree \(\ell\) determines the behaviour under rotations (an irrep of degree \(\ell\) has \(2 \ell+1\) components/ is described by \(2 \ell+1\) numbers). For example, irreps with \(\ell=0\) are described by a single number and do not change (are invariant) under rotations, whereas irreps with \(\ell=1\) consist of three components and rotate similar to ordinary three-dimensional vectors. When irreps have parity +1 for even \(\ell\) and -1 for odd \(\ell\), we refer to them as 'tensors', and when they have the opposite parity, we call them 'pseudotensors'. Features either consist only of tensors (in which case \(P=1\) ), or of both tensors and pseudotensors (in which case \(P=2\) and irreps of even/odd parity are stored in separate slices, that is, indices 0 and 1 , of the parity axis). For a more detailed overview, we refer the reader to ref. 41.
+
+We are usually working with the concatenation of features starting from the lowest degree \(\ell=0\) up to some maximum degree \(L\), which we denote as \(\mathbf{x} \in \mathbb{R}^{P \times(L+1)^{2} \times H}\) (each degree \(\ell\) contributes a slice of size \(2 \ell+1\), giving a total size \((L+1)^{2}\) for the 'degree axis'). We use \(\mathbf{x}_{m}\) to refer to the
+representation of the \(m\) th atom and \(\mathbf{x}^{\left(\ell_{ \pm}\right)}\)to refer to the 'slice' of irreps of degree \(\ell\) with parity \(p= \pm 1\). Invariant features, for example those used in SchNet \({ }^{9}\) or PhysNet \({ }^{47}\), can be considered as a special case with \(L=0\) and \(P=1\), that is, they only consist of irreps with degree 0 and even parity.
+
+Two irrep representations \(\mathbf{x}\) and \(\mathbf{y}\) can be 'coupled' via tensor product contractions \({ }^{66}\) to produce new features \(\mathbf{z}\). The irreps of degree \(c\) and parity \(\gamma\) of the new features \(\mathbf{z}\) are given by
+\[
+\mathbf{z}^{\left(c_{\gamma}\right)}=\sum_{\left(a_{\alpha}, b_{\beta}\right)} \mathbf{x}^{\left(a_{\alpha}\right)} \otimes^{\left(c_{\gamma}\right)} \mathbf{y}^{\left(b_{\beta}\right)}
+\]
+where the sum runs over all combinations of irreps with degrees \(a+b =c\) and parities \(\alpha \times \beta=\gamma\) of the input features \(\mathbf{x}\) and \(\mathbf{y}\). Evaluating the ‘ \(\otimes^{\left(c_{\gamma}\right) \text { ) }}\) operation in equation (9) involves a summation over components of the tensor (outer) product weighed with so-called Clebsch-Gordan coefficients (see ref. 41 for implementation details).
+
+Performing all possible tensor product contractions between irreps of maximal degree \(L_{x}\) and \(L_{y}\) up to a maximal output degree \(L_{z} \leq L_{x} +L_{y}\) is written as
+\[
+\mathbf{z}=\mathbf{x} \bigotimes_{L_{z}}^{L_{x} L_{y}} \mathbf{y},
+\]
+such that \(\mathbf{z} \in \mathbb{R}^{P \times\left(L_{z}+1\right)^{2} \times H}\). In other words, this is just a compact notation for the concatenation of all tensor product contractions (equation (9)) for \(c=0, \ldots, L_{z}\) and \(\gamma= \pm 1\).
+
+EROPE. Following typical implementations of the RoPE mechanism \({ }^{37}\), EROPE is implemented in a slightly different (but mathematically equivalent) manner than what is suggested in equation (1). Consider a complex number \(c=a+b i(c \in \mathbb{C}\) and \(a, b \in \mathbb{R})\). Recall that, to encode a position \(\mathbf{r} \in \mathbb{R}^{3}\) in Euclidean space into \(c\) with ERoPE, we calculate
+\[
+\mathrm{ERoPE}_{\mathbf{u}}(c, \mathbf{r})=c \times \mathrm{e}^{i \omega \mathbf{u} \cdot \mathbf{r}} .
+\]
+
+To avoid computations with complex numbers, we can instead collect the real and imaginary parts of \(c\) into a vector \(\mathbf{x}=[a b]^{T} \in \mathbb{R}^{2}\) and perform an equivalent encoding of \(\mathbf{r}\) into \(\mathbf{x}\) as
+\[
+\operatorname{ERoPE}_{\mathbf{u}}(\mathbf{x}, \mathbf{r})=\mathbf{M} \mathbf{x},
+\]
+where \(\mathbf{M}\) is the \(2 \times 2\) rotation matrix
+\[
+\left[\begin{array}{cc}
+\cos (\omega \mathbf{u} \cdot \mathbf{r}) & -\sin (\omega \mathbf{u} \cdot \mathbf{r}) \\
+\sin (\omega \mathbf{u} \cdot \mathbf{r}) & \cos (\omega \mathbf{u} \cdot \mathbf{r})
+\end{array}\right] .
+\]
+
+This formulation can be extended to higher-dimensional vectors \(\mathbf{x} \in \mathbb{R}^{H}\) with \(H=2 K\), where \(\mathbf{M}\) is now a \((2 K) \times(2 K)\) block-diagonal matrix consisting of \(2 \times 2\) rotation matrices and we allow different coefficients \(\omega_{k}\) for each of the \(K\) rotations matrices (the motivation for this is explained below). For high-dimensional vectors \(\mathbf{x}\), instead of evaluating \(\mathbf{M x}\) via matrix multiplication, it is more efficient (due to the sparsity of \(\mathbf{M}\) ) to compute
+\[
+\begin{aligned}
+\mathrm{ERoPE}_{\mathbf{u}}(\mathbf{x}, \mathbf{r})= & {\left[\begin{array}{l}
+\cos \left(\omega_{1} \mathbf{u} \cdot \mathbf{r}\right) \\
+\cos \left(\omega_{1} \mathbf{u} \cdot \mathbf{r}\right) \\
+\vdots \\
+\cos \left(\omega_{K} \mathbf{u} \cdot \mathbf{r}\right) \\
+\cos \left(\omega_{K} \mathbf{u} \cdot \mathbf{r}\right)
+\end{array}\right] \odot\left[\begin{array}{l}
+x_{1} \\
+x_{2} \\
+\vdots \\
+x_{2 K-1} \\
+x_{2 K}
+\end{array}\right] } \\
+& +\left[\begin{array}{l}
+\sin \left(\omega_{1} \mathbf{u} \cdot \mathbf{r}\right) \\
+\sin \left(\omega_{1} \mathbf{u} \cdot \mathbf{r}\right) \\
+\vdots \\
+\sin \left(\omega_{K} \mathbf{u} \cdot \mathbf{r}\right) \\
+\sin \left(\omega_{K} \mathbf{u} \cdot \mathbf{r}\right)
+\end{array}\right] \odot\left[\begin{array}{l}
+-x_{2} \\
+x_{1} \\
+\vdots \\
+-x_{2 K} \\
+x_{2 K-1}
+\end{array}\right],
+\end{aligned}
+\]
+where ' \(\odot\) ' denotes element-wise multiplication and \(x_{j}\) is the \(j\) th entry of \(\mathbf{x}\). For vectors with an odd number of dimensions, that is, \(H=2 K-1\),
+the missing entry \(x_{2 K}\) can be simply replaced by zero ( \(\mathbf{x}\) is zero-padded to an even number of dimensions).
+
+Expressed in words, if we interpret a vector \(\mathbf{x} \in \mathbb{R}^{2 K}\) as consisting of the concatenated real and imaginary parts of the (complex) entries of a vector \(\tilde{\mathbf{x}} \in \mathbb{C}^{K}\), then applying equation (11) to \(\mathbf{x}\) (with \(\omega_{k}=\omega\) ) is equivalent to applying equation (1) to \(\widetilde{\mathbf{x}}\). The motivation for allowing different \(\omega_{k}\) for each entry \(k\) is that it increases the expressivity of the operation: recall that after integration over \(S^{2}\), encoding positions \(\mathbf{r}_{m}\) and \(\mathbf{r}_{n}\) into vectors \(\mathbf{q}_{m}\) and \(\mathbf{k}_{n}\) with ERoPE and computing their scalar product essentially corresponds to scaling \(\left\langle\mathbf{q}_{m}, \mathbf{k}_{n}\right\rangle\) with \(\operatorname{sinc}\left(\omega r_{m n}\right)\) (see equation (2) and 'Analytic solution of the surface integral' section in Supplementary Information). When different \(\omega_{k}\) are used for each entry, instead of applying a uniform scaling factor, the contribution of different entries to the scalar product can be scaled independently by factors of \(\operatorname{sinc}\left(\omega_{k} r_{m n}\right)\), which allows one to express a more complicated radial dependence.
+
+The extension of ERoPE to equivariant features \(\mathbf{x} \in \mathbb{R}^{P \times(L+1)^{2} \times H}\) is straightforward: we simply consider \(\mathbf{x}\) as a collection of \(P \times(L+1)^{2}\) vectors of dimension \(H\), to which equation (11) is applied separately. In other words, ERoPE is applied along the 'feature axis' (of size \(H\) ), whereas the 'parity axis' (of size \(P\) ) and the 'degree axis' (of size \((L+1)^{2}\) ) are treated as ‘batch dimensions’.
+
+Spherical harmonics. The spherical harmonics are functions defined on the surface of the unit sphere \(S^{2}:=\left\{\mathbf{u} \in \mathbb{R}^{3}:\|\mathbf{u}\|=1\right\}\). We follow the conventions used in ref. 41 and define them as real and vector-valued, that is, \(\mathbf{Y}_{\ell}: S^{2} \mapsto \mathbb{R}^{2 \ell+1}\). For example, the first two of these functions (using the Racah normalization convention) are given by \(\mathbf{Y}_{0}(\mathbf{u})=1\) and \(\mathbf{Y}_{1}(\mathbf{u})=\mathbf{u}\). In general, the individual components of \(\mathbf{Y}_{\ell}\) are polynomials of degree \(\ell\) in the \(x, y\), and \(z\) components of the vector \(\mathbf{u}\) (see ref. 41 for a general definition for arbitrary degrees \(\ell\) ).
+
+Lebedev quadrature. A Lebedev quadrature \({ }^{65}\) is a numerical approximation to the surface integral of a function \(f\) over the unit sphere \(S^{2}\)
+\[
+\int_{S^{2}} f(\mathbf{u}) \mathrm{d} \mathbf{u} \approx 4 \pi \sum_{j=1}^{G} \lambda_{j} f\left(\mathbf{u}_{j}\right),
+\]
+where \(\mathbf{u}_{j} \in S^{2}\) are grid points and \(\lambda_{j} \in \mathbb{R}\) are the corresponding quadrature weights. The grid can be made denser, that is, the number of grid points \(G\) can be increased, to make the approximation more accurate. Similar to one-dimensional Gaussian quadratures, Lebedev quadratures have the important property that integration of polynomials up to a certain degree is exact. For example, a grid with just \(G=6\) points integrates polynomials of up to degree3 (such as the spherical harmonics with \(\ell \leq 3\) ) without error \({ }^{65}\).
+
+Implementation of EFA. Given atomic features \(\mathbf{x}_{m}^{\left(\ell_{p}\right)} \in \mathbb{R}^{P \times 2 \ell+1 \times H}\), queries, keys and values are calculated as
+\[
+\begin{aligned}
+\mathbf{q}_{m}^{\left(\ell_{p}\right)} & =\mathbf{x}_{m}^{\left(\ell_{p}\right)} W_{q}^{\left(\ell_{p}\right)}, \\
+\mathbf{k}_{m}^{\left(\ell_{p}\right)} & =\mathbf{x}_{m}^{\left(\ell_{p}\right)} W_{k}^{\left(\ell_{p}\right)}, \\
+\text { and } \mathbf{v}_{m}^{\left(\ell_{p}\right)} & =\mathbf{x}_{m}^{\left(\ell_{p}\right)} W_{v}^{\left(\ell_{p}\right)} .
+\end{aligned}
+\]
+
+Here, \(W_{q}^{\left(\ell_{p}\right)} \in \mathbb{R}^{H \times D_{q k}}, W_{k}^{\left(\ell_{p}\right)} \in \mathbb{R}^{H \times D_{q k}}\) and \(W_{v}^{\left(\ell_{p}\right)} \in \mathbb{R}^{H \times D_{v}}\) are separate weight matrices for each combination of degree \(\ell\) and parity \(p\) and matrix multiplication is performed along the 'feature axis', for example, \(\mathbf{x}^{\left(\ell_{p}\right)} W_{v}^{\left(\ell_{p}\right)} \in \mathbb{R}^{P \times 2 \ell+1 \times D_{v}}\). Atomic positions are encoded into query and key vectors with ERoPE
+\[
+\begin{aligned}
+\tilde{\mathbf{q}}_{m, \mathbf{u}}^{\left(\ell_{p}\right)} & :=\operatorname{ERoPE}_{\mathbf{u}}\left(\mathbf{r}_{m}, \boldsymbol{\Psi}\left(\mathbf{q}_{m}^{\left(\ell_{p}\right)}\right)\right), \\
+\tilde{\mathbf{k}}_{m, \mathbf{u}}^{\left(\ell_{p}\right)} & :=\operatorname{ERoPE}_{\mathbf{u}}\left(\mathbf{r}_{m}, \boldsymbol{\Psi}\left(\mathbf{k}_{m}^{\left(\ell_{p}\right)}\right)\right),
+\end{aligned}
+\]
+where \(\boldsymbol{\Psi}\) can be any feature map that preserves equivariance (see Supplementary equation (5)). Here, we choose a simple identity function or gated \({ }^{67}\) GELU \({ }^{68}\) nonlinearity, which is applied element-wise along the 'feature axis' of size \(D_{q k}\).
+
+The individual \(\tilde{\mathbf{q}}_{m, \mathbf{u}}^{\left(\ell_{p}\right)}, \tilde{\mathbf{k}}_{m, \mathbf{u}}^{\left(\ell_{p}\right)}\), and \(\mathbf{v}_{m}^{\left(\ell_{p}\right)}\) for all of the \(N\) atoms are concatenated row-wise to give
+\[
+\begin{aligned}
+& \tilde{\mathbf{Q}}_{\mathbf{u}} \in \mathbb{R}^{N \times P_{q k} \times\left(L_{q k}+1\right)^{2} \times D_{q k}}, \\
+& \tilde{\mathbf{K}}_{\mathbf{u}} \in \mathbb{R}^{N \times P_{q k} \times\left(L_{q k}+1\right)^{2} \times D_{q k}}, \\
+& \mathbf{V} \in \mathbb{R}^{N \times P_{v} \times\left(L_{v}+1\right)^{2} \times D_{v}} .
+\end{aligned}
+\]
+
+Note that queries \(\tilde{\mathbf{Q}}_{\mathbf{u}}\) and keys \(\tilde{\mathbf{K}}_{\mathbf{u}}\) must have the same maximal degree \(L_{q k}\), parity size \(P_{q k}\) and feature dimension \(D_{q k}\), whereas the corresponding choices for the values \(\mathbf{V}\) may be different. In addition, we include \(\mathbf{u}\) as a subscript for \(\tilde{\mathbf{Q}}_{\mathbf{u}}\) and \(\tilde{\mathbf{K}}_{\mathbf{u}}\) to make explicit that their entries depend on the choice of \(\mathbf{u}\) used for the ERoPE encoding of the atomic positions.
+
+Using slight abuse of notation (which is motivated below), we can now 'translate' the linear-scaling attention-like mechanism introduced in equation (4) to
+\[
+\mathbf{B}_{\mathbf{u}}:=\tilde{\mathbf{Q}}_{\mathbf{u}}\left(\tilde{\mathbf{K}}_{\mathbf{u}}^{\top} \mathbf{V}\right),
+\]
+where \(\mathbf{B}_{\mathbf{u}} \in \mathbb{R}^{N \times P_{v} \times\left(L_{v}+1\right)^{2} \times D_{v}}\). Here, the 'outer product' \(\tilde{\mathbf{K}}_{\mathbf{u}}^{\top} \mathbf{V}\) of keys and values can be computed with time complexity \(\mathcal{O}(N)\) and should be thought of as evaluating to an array of shape \(\left[P_{q k} \times\left(L_{q k}+1\right)^{2} \times D_{q k} \times P_{v} \times\right. \left.\left(L_{v}+1\right)^{2} \times D_{v}\right]\). The subsequent multiplication with \(\tilde{\mathbf{Q}}_{\mathbf{u}}\) from the left side should be understood as reducing over (element-wise multiplication followed by summation) the last three axes of \(\tilde{\mathbf{Q}}_{\mathbf{u}}\) and the first three axes of \(\tilde{\mathbf{K}}_{\mathbf{u}}^{\top} \mathbf{V}\). This operation also has a time complexity of \(\mathcal{O}(N)\), which makes the full operation (equation (13)) scale linearly in the number of atoms. We use the suggestive 'matrix-like' notation in equation (13), because when \(P_{q k}=P_{v}=1\) and \(L_{q k}=L_{v}=0\) (special case for 'ordinary' invariant features), many axes of the involved arrays have size 1 and can be omitted ('squeezed') for simplicity. In this special case, \(\tilde{\mathbf{Q}}_{\mathbf{u}}, \tilde{\mathbf{K}}_{\mathbf{u}} \in \mathbb{R}^{N \times D_{q k}}\) and \(V \in \mathbb{R}^{N \times D_{v}}\), so equation (13) is correctly described with conventional notation for matrix operations.
+
+The full equivariant EFA update (equation (5)) is implemented as
+\[
+\operatorname{EFA}(X, R)=\sum_{j=1}^{G} \lambda_{j} \mathbf{B}_{\mathbf{u}_{j}} \stackrel{L_{v} L_{Y}}{\Theta_{\text {out }}} \mathbf{Y}_{\mathbf{u}_{j}}
+\]
+where we replace the integral over \(S^{2}\) with a Lebedev quadrature and \(\mathbf{Y}_{\mathbf{u}} \in \mathbb{R}^{1 \times 1 \times\left(L_{Y}+1\right)^{2} \times 1}\) is the concatenation of spherical harmonics vectors \(\mathbf{Y}_{\ell}(\mathbf{u})\) up to maximal degree \(L_{Y}\) with additional 'dummy axes' of size 1 that are broadcasted over the corresponding axes of \(\mathbf{B}_{\mathbf{u}}\), so that the tensor product contractions (see equation(10)) are well defined. When \(L_{Y}=0\) (and \(\mathbf{B}_{\mathbf{u}_{j}}\) contains only invariant information, that is, \(P_{v}=1\) and \(L_{v}=0\) ), the invariant form of EFA (equation (3)) is recovered.
+
+Numerical accuracy. Because the integration over \(S^{2}\) is performed numerically in equation (14), the accuracy of the rotational invariance/ equivariance of the EFA update is directly related to the precision of the Lebedev quadrature. To better understand the limitations of this approach, we point out that the function that is integrated in equation (14) basically corresponds to a linear combination of terms of the form \(\sin \left(\omega_{k} \mathbf{u} \cdot \mathbf{r}_{m n}\right) \cdot\) poly \(_{\ell}(\mathbf{u})\) and \(\cos \left(\omega_{k} \mathbf{u} \cdot \mathbf{r}_{m n}\right) \cdot\) poly \(_{\ell}(\mathbf{u})\), where poly \(_{\ell}(\mathbf{u})\) is some polynomial of degree \(\ell \leq L_{Y}\) in the \(x, y\) and \(z\) components of the vector \(\mathbf{u}\) (the sine/cosine components stem from ERoPE, whereas the polynomials come from the spherical harmonics). As mentioned earlier, polynomials up to a certain degree are integrated exactly when using Lebedev quadratures. While, the sine/cosine components are not polynomials, it is still possible to estimate a sort of 'pseudo-degree' for them: we can approximate these terms by a Taylor series in
+\(b:=\omega_{k} \mathbf{u} \cdot \mathbf{r}_{m n}\) around zero. Clearly, the larger \(b\) is, the more terms are required in the Taylor series for a good approximation, which corresponds to a larger pseudo-degree. The largest ‘total degree’ of the terms in the integral is then given by the sum of the highest degree \(L_{Y}\) of the spherical harmonics and the estimated pseudo-degree of the sine/ cosine terms. Assuming a fixed budget of grid points \(G\), the integration will be sufficiently accurate up to some \(b_{\text {max }}\), which yields the inequality \(\omega_{k} r_{n m} \leq b_{\text {max }}\). This can be used to define a maximal frequency
+\[
+\omega_{\max }=\frac{b_{\max }}{r_{\max }}
+\]
+up to which (almost) exact rotational invariance/equivariance is ensured. Here, \(r_{\text {max }}\) is the maximal expected distance between atoms (which can be estimated from the training data), and the value of \(\omega_{\text {max }}\) can be chosen accordingly. Alternatively, the number of grid points \(G\) can be increased to make \(b_{\text {max }}\) larger, which in turn allows choosing a larger \(\omega_{\text {max }}\). Because the analytic solution of the integral is known (see 'Analytic solution of the surface integral' section in Supplementary Information), the value of \(b_{\text {max }}\) (for a given \(G\) ) can be easily determined numerically. In this work, we define \(b_{\text {max }}\) as the largest value for which the absolute deviation between numerical and analytic solution stays below a value of \(10^{-5}\) (which roughly corresponds to the numerical precision of single precision floating point arithmetic). We confirm empirically that our implementation of EFA (equation (14)) is rotationally invariant/equivariant up to the desired numerical precision in Supplementary Fig. 5 and provide precomputed values for \(b_{\text {max }}\) as function of \(G\) in Supplementary Table 4.
+
+It should be pointed out that the total cost of evaluating EFA scales as \(\mathcal{O}(N \cdot G)\), that is, it is linear in both the number of particles \(N\) and the number of grid points \(G\). Thus, a computational advantage over quadratically scaling methods is obtained only if \(G<N\). For this reason, \(G\) should be kept as small as possible for maximum efficiency. For many applications, a more lenient accuracy threshold than \(10^{-5}\) (and therefore smaller \(G\) than those listed in Supplementary Table 4) may be acceptable. Empirically, we find that many long-range interactions can be captured accurately with low values of \(\omega_{\text {max }}\), so small grids are typically feasible. For maximum performance, we recommend benchmarking different settings to determine an optimal trade-off between accuracy and efficiency ( \(G\) can even be modified after model training, as it affects only the accuracy of the numerical integration and not the learned interactions). Finally, we note that EFA only scales linearly with respect to \(N\) under the assumption that \(G\) can be kept constant when increasing the number of particles. In cases where an increase of system size also necessitates increasing \(b_{\text {max }}\) (see equation (15)), \(G\) needs to be increased accordingly to keep the same numerical accuracy.
+
+\section*{Neural network implementation}
+
+For the experiments performed in this work, we choose an equivariant MPNN in the spirit of tensor field networks \({ }^{69}\) or NequIP \({ }^{30}\). This base model is then optionally augmented with EFA blocks, and we compare the performance of the different architectural variants. Because our analyses do not depend on particular model details, but rather investigate general limitations inherent to all strictly local MLFFs, we expect our results to also transfer to other choices of local models (which can be augmented with EFA blocks in the same manner). MPNNs are chosen merely as a representative local model due to their popularity, and because an effective cutoff (extending beyond the local cutoff) exists only for MPNN-like models and must be carefully considered when analysing the results (other local models, such as Behler-Parrinello neural networks \({ }^{7}\), can be regarded as an MPNN-like model with \(T=1\) in our considerations).
+
+For the implementations of equivariant operations, we use the E3x library \({ }^{41}\), which is built on top of JAX \({ }^{70}\) and FLAX \({ }^{71}\). NumPy \({ }^{72}\) and ASE \({ }^{73}\) are used for data pre- and postprocessing.
+
+MPNNs. We follow the typical design of MPNNs discussed in the ‘Limitations of local models' section in Main and iteratively update initial embeddings using repeated application of
+\[
+x^{[t+1]}=\text { MessagePassing }\left(x^{[t]}, \mathcal{R}\right)
+\]
+(the MessagePassing block is described below). The atomic representations with \(\ell=0\) and even parity are initialized via learned atom type embeddings dependent on the atomic numbers \(z:=\left\{z_{1}, \ldots, z_{N} \mid z_{m} \in \mathbb{N}_{+}\right\}\). In case of the charged cluster experiments (see 'Idealized systems' section), we instead use the atomic charges \(\mathcal{Q}:=\left\{q_{1}, \ldots, q_{N} \mid q_{m} \in \mathbb{Z}\right\}\) to assign the embeddings. All other degree and parity channels are always initialized to zero with the exception of the charge-dipole experiment, where we use the atomic dipole vector with additional parity and feature axes of size 1 (that is, \(\boldsymbol{\mu} \in \mathbb{R}^{1 \times 3 \times 1}\) ) to initialize the features with \(\ell=1\) and odd parity as \(\mathbf{x}^{\left(\ell_{-}\right)}=\boldsymbol{\mu} W\left(W \in \mathbb{R}^{1 \times H}\right.\) is a learnable weight matrix that maps the dipole vector to the feature space).
+
+The \(\ell=0\) components with even parity (invariant parts) of the final atomic features \(X^{[T]}\) are used to predict per-atom energies, which are summed to give the total energy
+\[
+E_{\mathrm{ML}}=\sum_{m=1}^{N} w^{\top} \mathbf{x}_{m}^{[T]\left(0_{+}\right)}+E_{m, \text { bias }}
+\]
+where \(w \in \mathbb{R}^{H}\) is a trainable vector, \(E_{m, \text { bias }} \in \mathbb{R}\) is a trainable atom-type-dependent energy bias and \(\mathbf{x}^{[T]\left(0_{+}\right)} \in \mathbb{R}^{H}\) is the invariant part of the final features at layer \(T\) (parity and degree axes of size 1 are omitted here for clarity). In the presence of atomic dipoles, the invariant part is obtained via a tensor product that maps the atomic features of all degrees to invariant features. Forces are calculated as the negative gradient of the energy with respect to the atomic positions \(\left(\mathbf{F}_{m}=-\nabla_{\mathbf{r}_{m}} E\right)\), which can be done efficiently using automatic differentiation.
+
+Equivariant MP block. Throughout this work, we use a prototypical equivariant MPNN. It is built around equivariant continuous convolutions, which are used in many state-of-the-art MPNNs such as NequIP \({ }^{30}\), TFN \({ }^{69}\) and Equiformer \({ }^{42}\). The message sent from atom \(n\) to atom \(m\) is given by
+\[
+\mathbf{m}_{m n}^{[t]}=\left(\mathbf{W}\left(r_{m n}\right) \circ \mathbf{Y}\left(\hat{r}_{m n}\right)\right) \stackrel{L_{Y} L_{x}}{\otimes} \mathbf{x}_{n},
+\]
+where \(\mathbf{W}\left(r_{m n}\right) \in \mathbb{R}^{1 \times\left(L_{Y}+1\right)^{2} \times H}\) is a learned radial filter function containing \(H\) features for each degree \(\ell\) up to \(L_{Y}\). Importantly, the 'subslices' of size \(2 \ell+1\) for each degree \(\ell\) are constrained to contain identical entries (otherwise the operation would not preserve equivariance). The spherical harmonics \(\mathbf{Y}\left(\hat{r}_{m n}\right) \in \mathbb{R}^{1 \times\left(L_{Y}+1\right)^{2} \times 1}\) use 'dummy axes' of size 1 (similar to the use of spherical harmonics in equation (14)) and the element-wise multiplication '。' is broadcasted along these axes. The messages from all neighbours \(n\) in the neighbourhood \(\mathcal{N}_{m}\) of atom \(m\) (containing all atoms that satisfy \(r_{m n}<r_{\text {cut }}\) ) are aggregated as \(\mathbf{m}_{m}^{[t]}=\sum_{n \in \mathcal{N}_{m}} \mathbf{m}_{m n}^{[t]}\). Note that the radial filter \(\mathbf{W}\left(r_{m n}\right)\) in equation (18) is enforced to smoothly decay to zero at \(r_{\text {cut }}\), so that the learned representations vary continuously when atoms enter or leave \(\mathcal{N}_{m}\). Finally, the updated atom representations are obtained as
+\[
+\mathbf{x}_{m}^{[t+1]}=\operatorname{MLP}\left[\mathbf{x}_{m}^{[t]}+\mathbf{m}_{m}^{[t]}\right],
+\]
+where MLP is a multilayer perceptron with two equivariant dense layers and gated SiLU \({ }^{74}\) nonlinearity.
+
+For standard MPNNs, each MP update consists of an equivariant MP block. For an MPNN augmented with EFA, the atomic representations are passed to the equivariant MP block and to the EFA block (see below) and their outputs are added afterwards (see also Supplementary Fig. 4).
+
+EFA block. Non-local atomic representations are calculated using the EFA update (equation (14)), such that
+\[
+\mathbf{m}_{m, \mathrm{nl}}^{[t]}=\mathrm{EFA}\left(\mathcal{X}^{[t-1]}, \mathcal{\mathcal { K }}\right)_{m}
+\]
+
+As for the MP block, per-atomic embeddings are refined via an equivariant MLP, such that
+\[
+\mathbf{x}_{m, \mathrm{nl}}^{[t+1]}=\operatorname{MLP}\left[\mathbf{x}_{m}^{[t]}+\mathbf{m}_{m, \mathrm{nl}}^{[t]}\right]
+\]
+
+\section*{Training}
+
+Models are trained by minimizing a combined loss of energy and forces
+\[
+\begin{aligned}
+L & =\frac{\lambda_{E}}{B} \sum_{b=1}^{B}\left(E_{b, \text { true }}-E_{b, \mathrm{ML}}\right)^{2} \\
+& +\frac{\lambda_{F}}{B} \sum_{b=1}^{B} \frac{1}{N_{b}} \sum_{m=1}^{N_{b}}\left\|\mathbf{F}_{m, \text { true }}-\mathbf{F}_{m, \mathrm{ML}}\right\|_{2}^{2}
+\end{aligned}
+\]
+where \(B\) is the number of molecules per batch, \(N_{b}\) is the number of atoms for molecule \(b\) and \(\lambda_{E}\) and \(\lambda_{F}\) are scaling parameters for the energy and force components of the loss.
+
+We use Adam \({ }^{75}\) for parameter optimization (as implemented in the optax \({ }^{76}\) library) and an initial learning rate of \(10^{-3}\). The learning rate is decayed to \(10^{-5}\) at the end of training via an exponential decay schedule. In Supplementary Table 2, we report the full information on optimization settings for each experiment.
+
+\section*{Model hyperparameters}
+
+If not stated otherwise, default EFA blocks use a query and key dimension of \(D_{q k}=16\) and a value dimension of \(D_{v}=32\). The number of Lebedev grid points is set to \(G=50\). The maximal atomic separation varies between datasets and is reported in Supplementary Table 2. For simplicity, we assume the degrees for queries, keys and values to always be equal and define the shorthand \(L_{\mathrm{EFA}}=L_{q k}=L_{v}\). Other model hyperparameters are described below.
+
+Geometric expressiveness. For the \(\boldsymbol{k}\)-chains experiment, we use the equivariant MP block and the EFA block as standalone component. For the MP block, we follow the original publication \({ }^{45}\) and use a hard cutoff of \(r_{\text {cut }}=10 \AA\) for simplicity. For the EFA block, we use the hyperparameters outlined above. The final output consists of two values that are passed through softmax to predict a probability for each class. The models are trained by minimizing the cross-entropy to the true class labels. The number of features for both blocks is \(H=32\), and the maximal degree in the MP block is \(L_{\text {max }}=2\). The number of MP updates is increased until the model is able to correctly classify the graphs. Because the maximal separation \(r_{\text {max }}\) between atoms increases with \(k\), the maximal frequency for ERoPE (see equation (15)) must be decreased accordingly, leading to slower training convergence for the longest \((k=8)\) chain. Based on theoretical analysis of positional encoding techniques \({ }^{77}\), we can speed up convergence by increasing \(b_{\text {max }}=2 \pi\) and adjust the number of Lebedev grid points to \(G=86\) accordingly (Supplementary Table 4). For the experiments probing distinguishability of neighbourhoods, we use an EFA update as described in equation (5) and produce per degree invariants by taking the L2-norm per degree in the equivariant representation \(\mathbf{x}\) of the central node. We compare the values for each degree \(\ell\) for each pair of distinct neighbourhoods and label the smallest degree for which the invariants are different.
+
+Two-particle systems. For the two-atom systems with a pairwise potential, we use a feature dimension of \(H=128\); a maximal degree of \(L_{\mathrm{MP}}=1\) is used in the MP block and \(L_{\mathrm{EFA}}=0\) and \(\boldsymbol{\Psi}=\) GELU in the EFA block. The spherical harmonics vector has maximal degree \(L_{Y}=0\) for all models expect for the one applied to the charge-dipole system, for which we additionally train a model with \(L_{Y}=1\) to show that the task can only be solved by including directional information (see main text).
+
+N -particle system. For the \(N\)-atom NaCl -like systems we use a feature dimension of \(H=32\), maximal degrees of \(L_{\mathrm{MP}}=0\), and between \(T=1\) and \(T=5 \mathrm{MP}\) layers (see main text). For models with EFA, we use \(L_{\mathrm{EFA}}=0\), \(G=194, \omega_{\max }=\frac{2 \pi}{15}, D_{q k}=128, D_{v}=8\) and \(\Psi=\) Id as hyperparameters. Despite the systems having different maximal separation (sphere diameter), we use the same value of \(\mathrm{r}_{\text {max }}=30 \AA\) for all systems to maintain identical maximal frequency (see equation (15)).
+
+Non-local charge transfer. For the non-local charge transfer benchmark, we distinguish between systems with and without PBCs. For the latter, we use \(T=3 \mathrm{MP}\) layers and a local cutoff of \(r_{\text {cut }}=4 \AA\), a feature dimension of \(H=128\) and \(L_{\mathrm{MP}}=2\). For the model with EFA, we use \(L_{\mathrm{EFA}}=1\) and \(\boldsymbol{\Psi}=\) GELU (other hyperparameters are set to the default values described above). We do not use the EFA block in the final layer as we found this to improve training stability and final accuracy.
+
+For the periodic system, we use \(T=2 \mathrm{MP}\) layers (all other hyperparameters for the MP model are the same as for the non-periodic systems). For EFA, we follow the protocol for PBCs described in 'Other symmetrisation operations' section in Supplementary Information and choose a maximal frequency of \(\omega_{\max }=\pi / 4 \mathrm{in}\) ERoPE with \(L_{\mathrm{EFA}}=0\) and \(\boldsymbol{\Psi}=\) GELU.
+
+Materials. For the models trained on the materials data from ref. 50, we use the same model as for the periodic system in the non-local charge transfer benchmark (see above).
+
+Molecular systems. For the molecular systems, we use \(T=2\) for the \(\mathrm{S}_{\mathrm{N}} 2\) experiments and \(T=3\) for the dimer and cumulene results. The local cutoff is varied between \(r_{\text {cut }}=5 \AA\) and \(r_{\text {cut }}=10 \AA\) for the \(\mathrm{S}_{\mathrm{N}} 2\) experiments as described in the main text. We choose \(r_{\text {cut }}=4 \AA\) for the dimers and for cumulene. The feature dimension for the models with EFA block is \(H=128\) for \(T=2\) and \(H=64\) for \(T=3\). For models without EFA block, the feature dimension is increased to \(H=162\) for \(T=2\) and \(H=84\) for \(T=3\), such that models with and without EFA block have approximately ( \(\leq 1 \%\) deviation) the same number of parameters. The maximal degree in the MP block is \(L_{\mathrm{MP}}=2\) and \(L_{\mathrm{EFA}}=0\) in the EFA block, except for the cumulene structures where we additionally train models with \(L_{\text {EFA }}=1\) and \(L_{\text {EFA }}=2\) (see main text). The maximal degree of the spherical harmonics vector in the EFA update is always \(L_{Y}=0\). All EFA models use \(\boldsymbol{\Psi}=\) GELU.
+
+\section*{Pairwise potentials}
+
+For the isotropic two-particle systems, the potential is given by
+\[
+V\left(r_{m n}\right)=\frac{1}{r_{m n}^{3}}-\frac{1}{r_{m n}}
+\]
+resembling attractive charge-charge interactions in the long-range regime. For the anisotropic two-particle system, we modify the long-range component to mimic charge-dipole interactions: one atom is assigned a 'charge' and the other a unit 'dipole' vector \(\boldsymbol{\mu} \in \mathrm{R}^{3}\). The long-range potential is then given as
+\[
+V\left(r_{m n}\right)=\frac{1}{r_{m n}^{3}}-\frac{\cos (\theta)}{r_{m n}^{2}}
+\]
+where \(\Theta\) is the angle between \(\boldsymbol{\mu}\) and the normalized displacement vector between the atoms \(\mathbf{r}_{m n} / r_{m n}\). The quadratic decay in distance \(r\) reflects the physical behaviour of charge-dipole interactions.
+
+For the \(N\)-particle NaCl -like system, we assume Na to have positive \(q=+1\) and CI to have negative charge \(q=-1\). The long-range interactions are described via a screened Coulomb potential
+\[
+V\left(r_{m n}\right)=k_{e} q_{m} q_{n} \frac{\operatorname{erf}\left(\alpha r_{m n}\right)}{r_{m n}}
+\]
+where \(k_{e}\) is the Coulomb constant, erf is the error function and \(\alpha=0.5 \AA^{-1}\) is a scalar screening coefficient. The screening prevents diverging
+energy and forces when \(r\) approaches zero and corresponds to the interaction of Gaussian charge densities.
+
+\section*{NaCl data creation}
+
+We randomly place \(N\) atoms within a sphere of diameter \(d\). We consider systems of increasing diameter \(d\), ranging from \(10 \AA\) to \(30 \AA\). We keep the density constant at 0.075 atoms \(\AA^{-3}\), such that the number of atoms \(N\) increases with \(d\). To ensure a physically meaningful distribution of pairwise distances, we require that the distance \(r_{m n}\) is \(\geq\left(R_{m}^{\mathrm{vdW}}+R_{n}^{\mathrm{vdW}}\right) / 2\) for any two atoms \(m\) and \(n\) (we use \(R_{\mathrm{Na}}^{\mathrm{vdW}}=0.95 \AA\) and \(R_{\mathrm{Cl}}^{\mathrm{vdW}}=1.91 \AA\) as van der Waals radii).
+
+\section*{Dimer data subset creation}
+
+The SPICE dataset \({ }^{78}\) serves as starting point for the dimer data. SPICE contains energies and forces for the dimer geometries in the DES370K dataset \({ }^{48}\) recalculated using density functional theory. The resulting dataset has 4,612 entries and covers a variety of biologically relevant dimers. Each dimer consists of two molecules (monomers) that interact with each other via non-covalent (long-range) interactions. However, the generated dataset is unbalanced in the sense that certain monomers appear more often within dimers than others, biasing the model towards a correct description of dimers with these monomers. To alleviate this problem, we create a curated subset of the dimers data that only uses the most frequent nine monomers. This results in a new dataset of 76 dimers. Almost all combinations of monomers present in the original dataset are also present in the curated version ( 76 versus 81 possible combinations).
+
+\section*{Data availability}
+
+The \(\mathrm{S}_{\mathrm{N}} 2\) data are taken from ref. 47, the cumulene data are taken from ref. 3 , the dimer data are taken from refs. 48,78 , data for the non-local charge transfer benchmark are taken from ref. 46 and BIGDML data are taken from ref.50.The \(k\)-chains data are available via GitHub at https:// github.com/chaitjo/geometric-gnn-dojo. The data for distinguishability of local neighbourhoods are available via GitHub at https:// github.com/google-research/e3x/blob/main/tests/nn/modules_test. py (starting from line 315) and were originally proposed in ref. 43. Preprocessed datasets for use with EFA as well as newly generated datasets and source data for plots and tables are available via Zenodo at https:// doi.org/10.5281/zenodo. 14750285 (ref.79).
+
+\section*{Code availability}
+
+An implementation of the EFA algorithm is publicly available via GitHub at https://github.com/thorben-frank/euclidean_fast_attention. The repository also includes code for training and evaluation. The code for the article is also available via Zenodo at https://doi.org/10.5281/ zenodo. 18171624 (ref. 80).
+
+\section*{References}
+1. Rupp, M., Tkatchenko, A., Müller, K.-R. \& Von Lilienfeld, O. A. Fast and accurate modeling of molecular atomization energies with machine learning. Phys. Rev. Lett. 108, 058301 (2012).
+2. von Lilienfeld, O. A., Müller, K.-R. \& Tkatchenko, A. Exploring chemical compound space with quantum-based machine learning. Nat. Rev. Chem. 4, 347-358(2020).
+3. Unke, O. T. et al. Machine learning force fields. Chem. Rev. 121, 10142-10186 (2021).
+4. Keith, J. A. et al. Combining machine learning and computational chemistry for predictive insights into chemical systems. Chem. Rev. 121, 9816-9872 (2021).
+5. Fu, X. et al. Forces are not enough: benchmark and critical evaluation for machine learning force fields with molecular simulations. TMLR 2835-8856 (2023).
+6. Karplus, M. \& McCammon, J. A. Molecular dynamics simulations of biomolecules. Nat. Struct. Mol. Biol. 9, 646-652 (2002).
+7. Behler, J. \& Parrinello, M. Generalized neural-network representation of high-dimensional potential-energy surfaces. Phys. Rev. Lett. 98, 146401 (2007).
+8. Bartók, A. P., Payne, M. C., Kondor, R. \& Csányi, G. Gaussian Approximation Potentials: the accuracy of quantum mechanics, without the electrons. Phys. Rev. Lett. 104, 136403 (2010).
+9. Schütt, K. T., Sauceda, H. E., Kindermans, P.-J., Tkatchenko, A. \& Müller, K.-R. SchNet-a deep learning architecture for molecules and materials. J. Chem. Phys. 148, 241722 (2018).
+10. Schütt, K. T. et al. Machine Learning Meets Quantum Physics (Springer, 2020).
+11. Unke, O. T. et al. Biomolecular dynamics with machine-learned quantum-mechanical force fields trained on diverse chemical fragments. Sci. Adv. 10, eadn4397 (2024).
+12. Kabylda, A. et al. Molecular simulations with a pretrained neural network and universal pairwise force fields. J. Am. Chem. Soc. 147, 33723-33734 (2025).
+13. Merchant, A. et al. Scaling deep learning for materials discovery. Nature 624, 80-85 (2023).
+14. Woods, L. et al. Materials perspective on Casimir and van der Waals interactions. Rev. Mod. Phys. 88, 045003 (2016).
+15. Hermann, J., DiStasio, R. A. Jr \& Tkatchenko, A. First-principles models for van der Waals interactions in molecules and materials: concepts, theory, and applications. Chem. Rev. 117, 4714-4758 (2017).
+16. Stöhr, M., Van Voorhis, T. \& Tkatchenko, A. Theory and practice of modeling van der Waals interactions in electronic-structure calculations. Chem. Soc. Rev. 48, 4118-4154 (2019).
+17. Vaswani, A. et al. Attention is all you need. In Proc. Advances in Neural Information Processing Systems (Curran Associates, Inc., 2017); https://proceedings.neurips.cc/paper_files/paper/2017/fil e/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+18. Dosovitskiy, A. et al. An image is worth \(16 \times 16\) words: Transformers for image recognition at scale. In International Conference on Learning Representations (ICLR, 2021).
+19. Veličković, P. et al. Graph attention networks. In International Conference on Learning Representations (ICLR, 2018).
+20. von Glehn, I., Spencer, J. S. \& Pfau, D. A self-attention ansatz for ab-initio quantum chemistry. In International Conference on Learning Representations (ICLR, 2023).
+21. Dao, T., Fu, D., Ermon, S., Rudra, A. \& Ré, C. FlashAttention: fast and memory-efficient exact attention with IO-awareness. Adv. Neural Inf. Process. Syst. 35, 16344-16359 (2022).
+22. Dao, T. Flashattention-2: faster attention with better parallelism and work partitioning. In International Conference on Learning Representations (ICLR, 2024).
+23. Tay, Y., Dehghani, M., Bahri, D. \& Metzler, D. Efficient transformers: a survey. ACM Comput. Surveys 55, 1-28 (2022).
+24. Yuan, J. et al. Native sparse attention: Hardware-aligned and natively trainable sparse attention. In Proc. 63rd Annual Meeting of the Association for Computational Linguistics (eds Che, W. et al.) 23078-23097 (Association for Computational Linguistics, 2025).
+25. Katharopoulos, A., Vyas, A., Pappas, N. \& Fleuret, F. Transformers are RNNs: fast autoregressive transformers with linear attention. In Proc. 37th International Conference on Machine Learning (eds Daumé, H. III \& Singh, Aarti) 5156-5165 (PMLR, 2020).
+26. Choromanski, K. M. et al. Rethinking attention with performers. In International Conference on Learning Representations (ICLR, 2021).
+27. Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O. \& Dahl, G. E. Neural message passing for quantum chemistry. In Proc. 34th International Conference on Machine Learning (eds Precup, D. \& Teh, Y. W.) 1263-1272 (PMLR, 2017).
+28. Zhang, L. et al. End-to-end symmetry preserving inter-atomic potential energy model for finite and extended systems. In Proc. Advances in Neural Information Processing Systems (Curran Associates, Inc., 2018); https://proceedings.neurips.cc/paper_files/ paper/2018/file/e2ad76f2326fbc6b56a45a56c59fafdb-Paper.pdf
+29. Unke, O. T. et al. SpookyNet: learning force fields with electronic degrees of freedom and nonlocal effects. Nat. Commun. 12, 7273 (2021).
+30. Batzner, S. et al. E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials. Nat. Commun. 13, 2453 (2022).
+31. Frank, J. T., Unke, O. T., Müller, K.-R. \& Chmiela, S. A Euclidean transformer for fast and stable machine learned force fields. Nat. Commun. 15, 6539 (2024).
+32. Poltavsky, I. et al. Crash testing machine learning force fields for molecules, materials, and interfaces: model analysis in the tea challenge 2023. Chem. Sci. 16, 3720-3737 (2025).
+33. Poltavsky, I. et al. Crash testing machine learning force fields for molecules, materials, and interfaces: molecular dynamics in the tea challenge 2023. Chem. Sci. 16, 3738-3754 (2025).
+34. Smith, J. S., Isayev, O. \& Roitberg, A. E. ANI-1: an extensible neural network potential with DFT accuracy at force field computational cost. Chem. Sci. 8, 3192-3203 (2017).
+35. Christensen, A. S., Bratholm, L. A., Faber, F. A. \& Anatole von Lilienfeld, O. FCHL revisited: faster and more accurate quantum machine learning. J. Chem. Phys. 152, 044107 (2020).
+36. Musaelian, A. et al. Learning local equivariant representations for large-scale atomistic dynamics. Nat. Commun. 14, 579 (2023).
+37. Su, J. et al. Roformer: Enhanced transformer with rotary position embedding. Neurocomputing 568, 127063 (2024).
+38. Ewald, P. P. Die Berechnung optischer und elektrostatischer Gitterpotentiale. Ann. Phys. 369, 253-287 (1921).
+39. Kosmala, A., Gasteiger, J., Gao, N. \& Günnemann, S. Ewald-based long-range message passing for molecular graphs. In Proc. 40th International Conference on Machine Learning 17544-17563 (JMLR. org, 2023).
+40. Frank, T., Unke, O. \& Müller, K.-R. So3krates: equivariant attention for interactions on arbitrary length-scales in molecular systems. Adv. Neural Inf. Process. Syst. 35, 29400-29413 (2022).
+41. Unke, O. T. \& Maennel, H. E3x: E(3)-equivariant deep learning made easy. Preprint at https://arxiv.org/abs/2401.07595 (2024).
+42. Liao, Y.-L. \& Smidt, T. Equiformer: equivariant graph attention transformer for 3D atomistic graphs. Preprint at https://arxiv.org/ abs/2206.11990 (2022).
+43. Pozdnyakov, S. N. et al. Incompleteness of atomic structure representations. Phys. Rev. Lett. 125, 166001 (2020).
+44. Leman, A. \& Weisfeiler, B. A reduction of a graph to a canonical form and an algebra arising during this reduction. Nauchno-Technicheskaya Informatsiya 2, 12-16 (1968).
+45. Joshi, C. K., Bodnar, C., Mathis, S. V., Cohen, T. \& Lio, P. On the expressive power of geometric graph neural networks. In Proc. 40th International Conference on Machine Learning 15330-15355 (PMLR, 2023).
+46. Ko, T. W., Finkler, J. A., Goedecker, S. \& Behler, J. A fourth-generation high-dimensional neural network potential with accurate electrostatics including non-local charge transfer. Nat. Commun. 12, 398 (2021).
+47. Unke, O. T. \& Meuwly, M. PhysNet: a neural network for predicting energies, forces, dipole moments, and partial charges. J. Chem. Theory Comput. 15, 3678-3693 (2019).
+48. Donchev, A. G. et al. Quantum chemical benchmark databases of gold-standard dimer interaction energies. Sci. Data 8, 55 (2021).
+49. Alon, U. \& Yahav, E. On the bottleneck of graph neural networks and its practical implications. In International Conference on Learning Representations (ICLR, 2021).
+50. Sauceda, H. E. et al. BIGDML-Towards accurate quantum machine learning force fields for materials. Nat. Commun. 13, 3733 (2022).
+51. Muhli, H. et al. Machine learning force fields based on local parametrization of dispersion interactions: Application to the phase diagram of \(\mathrm{C}_{60}\). Phys. Rev. B 104, 054106 (2021).
+52. Westermayr, J., Chaudhuri, S., Jeindl, A., Hofmann, O. T. \& Maurer, R. J. Long-range dispersion-inclusive machine learning potentials for structure search and optimization of hybrid organic-inorganic interfaces. Digit. Discov. 1, 463-475 (2022).
+53. Artrith, N., Morawietz, T. \& Behler, J. High-dimensional neural-network potentials for multicomponent systems: applications to zinc oxide. Phys. Rev. B 83, 153101 (2011).
+54. Morawietz, T., Sharma, V. \& Behler, J. A neural network potential-energy surface for the water dimer based on environment-dependent atomic energies and charges. J. Chem. Phys. 136, 064103 (2012).
+55. Grisafi, A. \& Ceriotti, M. Incorporating long-range physics in atomic-scale machine learning. J. Chem. Phys. 151, 204105 (2019).
+56. Pagotto, J., Zhang, J. \& Duignan, T. Predicting the properties of salt water using neural network potentials and continuum solvent theory. Preprint at chemRxiv https://doi.org/10.26434/chemrxiv-2022-jndlx (2022).
+57. Li, Y. et al. Long-short-range message-passing: a physicsinformed framework to capture non-local interaction for scalable molecular dynamics simulation. In International Conference on Learning Representations (ICLR, 2024).
+58. Loche, P. et al. Fast and flexible long-range models for atomistic machine learning. J. Chem. Phys. 162, 142501 (2025).
+59. Rokhlin, V. Rapid solution of integral equations of classical potential theory. J. Comput. Phys. 60, 187-207 (1985).
+60. King, D. S., Kim, D., Zhong, P. \& Cheng, B. Machine learning of charges and long-range interactions from energies and forces. Nat. Commun. 16, 8763 (2025).
+61. Cheng, B. Latent Ewald summation for machine learning of long-range interactions. npj Comput. Mater. 11, 80 (2025).
+62. Gori, M., Kurian, P. \& Tkatchenko, A. Second quantization of many-body dispersion interactions for chemical and biological systems. Nat. Commun. 14, 8218 (2023).
+63. Batatia, I., Schaaf, L. L., Csanyi, G., Ortner, C. \& Faber, F. A. Equivariant matrix function neural networks. In International Conference on Learning Representations (ICLR, 2024).
+64. Wang, Y. et al. Enhancing geometric representations for molecules with equivariant vector-scalar interactive message passing. Nat. Commun. 15, 313 (2024).
+65. Lebedev, V. I. Quadratures on a sphere. USSR Comput. Math. Math. Phys. 16, 10-24 (1976).
+66. Unke, O. et al. Se(3)-equivariant prediction of molecular wavefunctions and electronic densities. In Proc. 35th Conference on Neural Information Processing Systems (NeurIPS 2021) (Curran Associates, Inc., 2021); https://proceedings.neurips.cc/ paper_files/paper/2021/file/78f1893678afbeaa90b1fa01b9cfb860Paper.pdf
+67. Weiler, M., Geiger, M., Welling, M., Boomsma, W. \& Cohen, T. S. 3D steerable CNNs: learning rotationally equivariant features in volumetric data. In Proc. 32nd Conference on Neural Information Processing Systems (NeurIPS 2018) (Curran Associates, Inc., 2018); https://proceedings.neurips.cc/paper_files/paper/2018/file/488e4 104520c6aab692863cc1dba45af-Paper.pdf
+68. Hendrycks, D. \& Gimpel, K. Gaussian error linear units (GELUs). Preprint at https://arxiv.org/abs/1606.08415 (2016).
+69. Thomas, N. et al. Tensor field networks: rotation- and translation-equivariant neural networks for 3D point clouds. Preprint at https://arxiv.org/abs/1802.08219 (2018).
+70. Bradbury, J. et al. JAX: composable transformations of Python+NumPy programs. GitHub http://github.com/google/jax (2018).
+71. Heek, J. et al. Flax: a neural network library and ecosystem for JAX. GitHub http://github.com/google/flax (2020).
+72. Harris, C. R. et al. Array programming with NumPy. Nature 585, 357-362 (2020).
+73. Larsen, A. H. et al. The atomic simulation environment-a Python library for working with atoms. J. Phys. Condens. Matter 29, 273002 (2017).
+74. Elfwing, S., Uchibe, E. \& Doya, K. Sigmoid-weighted linear units for neural network function approximation in reinforcement learning. Neural networks 107, 3-11 (2018).
+75. Kingma, D. P. \& Ba, J. Adam: a method for stochastic optimization. Preprint at https://arxiv.org/abs/1802.08219 (2014).
+76. Hessel, M. et al. Optax: composable gradient transformation and optimisation, in jax!. GitHub http://github.com/deepmind/optax (2020).
+77. Tancik, M. et al. Fourier features let networks learn high frequency functions in low dimensional domains. Adv. Neural Inf. Process. Syst. 33, 7537-7547 (2020).
+78. Eastman, P. et al. Spice, a dataset of drug-like molecules and peptides for training machine learning potentials. Sci. Data 10, 11 (2023).
+79. Frank, J. T., Chmiela, S., Müller, K.-R. \& Unke, O. T. Machine learning global atomic representations with euclidean fast attention. Zenodo https://doi.org/10.5281/zenodo. 14750285 (2026).
+80. Frank, T. \& Engelberger, F. thorben-frank/euclidean_fast_attention: publication. Zenodo https://doi.org/10.5281/zenodo. 18171624 (2026).
+
+\section*{Acknowledgements}
+
+This work was in part supported by the German Ministry for Education and Research (BMBF) under grants 01IS14013A-E, 01GQ1115, 01GQ0850, 01IS18025A, 031L0207D and 01IS18037A. K.-R.M. was partly supported by the Institute of Information \& Communications Technology Planning \& Evaluation (IITP) grants funded by the Korea government (MSIT) (no. 2019-0-00079, Artificial Intelligence Graduate School Program, Korea University and no. 2022-0-00984, Development of Artificial Intelligence Technology for Personalized Plug-and-Play Explanation and Verification of Explanation). We thank S. Blücher and H. Maennel for helpful comments on the paper.
+
+\section*{Author contributions}
+J.T.F. and O.T.U. developed theory and code for the EFA algorithm. O.T.U. supervised and guided the project. J.T.F., S.C., K.-R.M. and O.T.U. conceived and designed the experiments. J.T.F. and O.T.U. performed the experiments. J.T.F. analysed the data. J.T.F. and O.T.U. prepared the first version of the paper. All authors contributed to writing the final version of the paper.
+
+\section*{Competing interests}
+
+The authors are inventors on a US patent application (Serial No. 18/897,283) and a PCT international patent application (No. PCT/ US2025/046393) related to this work.
+
+\section*{Additional information}
+
+Supplementary information The online version contains supplementary material available at https://doi.org/10.1038/s42256-026-01195-y.
+
+Correspondence and requests for materials should be addressed to Oliver T. Unke.
+
+Peer review information Nature Machine Intelligence thanks Sheng Gong, Sergey Pozdnyakov and the other, anonymous, reviewer(s) for their contribution to the peer review of this work.
+
+Reprints and permissions information is available at www.nature.com/reprints.
+
+Publisher's note Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.
+
+Springer Nature or its licensor (e.g. a society or other partner) holds exclusive rights to this article under a publishing agreement with the author(s) or other rightsholder(s); author self-archiving of the accepted manuscript version of this article is solely governed by the terms of such publishing agreement and applicable law.
+© The Author(s), under exclusive licence to Springer Nature Limited 2026
