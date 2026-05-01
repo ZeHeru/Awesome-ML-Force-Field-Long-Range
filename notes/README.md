@@ -76,13 +76,16 @@ The following papers mentioned in the main README do not yet have mind map notes
 - Reciprocal Space Neural Network
 
 ### Datasets
-- SPICE dataset
-- DES370K
-- S66/S66x8
-- QM7-X
-- QMugs
-- Water/ions/interfaces benchmarks
-- Polar crystals/ferroelectrics
+
+No dataset-specific mmd notes have been added yet. The current paper/data links are tracked in the main [Datasets and Benchmarks](../README.md#-datasets-and-benchmarks) section.
+
+- [SPICE dataset](https://doi.org/10.1038/s41597-022-01882-6) - [code/data](https://github.com/openmm/spice-dataset)
+- [DES370K](https://doi.org/10.1038/s41597-021-00833-x) - [data](https://zenodo.org/record/4910158)
+- [S66/S66x8](https://doi.org/10.1021/ct2002946)
+- [QM7-X](https://doi.org/10.1038/s41597-020-0473-z)
+- [QMugs](https://doi.org/10.1038/s41597-022-01390-7)
+- Water/ions/interfaces benchmarks - see LES, DPLR, and SCFNN notes.
+- Polar crystals/ferroelectrics - see LES-BEC and related response-property work.
 
 ### Software
 - AIMNetCentral

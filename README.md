@@ -90,17 +90,11 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 ### 🍔 Highlight
 
-[1] We separate **what is long-range** from **how it is implemented**: charge models, dipoles, Ewald/PME, reciprocal message passing, latent variables, and dispersion corrections are different families.
-
-[2] We track both **physics-explicit** and **learned-nonlocal** approaches, because current practical models often combine them.
-
-[3] We include **datasets and software hooks**, not only papers, so the list can help with actual simulations.
-
-[4] We mark preprints and code availability when possible.
+<!-- TODO: curate highlights manually. -->
 
 ### 🕑 Timeline
 
-![Timeline](assets/time.svg)
+<!-- TODO: curate timeline manually. -->
 
 ---
 
@@ -127,7 +121,7 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 **[2026/05/01] [V0.1] Initial release.**
 
 - Created a focused navigation list for long-range interactions in MLFFs / MLIPs.
-- Added first taxonomy, timeline, core papers, software links, and datasets.
+- Added first taxonomy, software links, and dataset links.
 - PRs are welcome for missing methods, benchmarks, and reproducibility notes.
 
 ---
@@ -147,25 +141,7 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 ## 📌 Core Papers and Code
 
-| Year | Resource | Direction | Code / Data |
-|---|---|---|---|
-| 2026 | [Accurate learning of long-range interatomic potentials by coupling CACE and SOG-Net](https://doi.org/10.1063/5.0303312) | CACE-SOG long-range Fourier convolution | [DuktigYajie/SOG-Net](https://github.com/DuktigYajie/SOG-Net) |
-| 2026 | [Long-Range Electrostatics Made Easier Than We Thought](https://doi.org/10.XXXX/XXXXX) | Simplified approach to incorporating long-range electrostatics in ML potentials | Code TBA |
-| 2025 | [Machine-Learning Interatomic Potentials for Long-Range Systems](https://doi.org/10.1103/ssp9-7s81) | Sum-of-Gaussians Neural Network, near-linear long-range tail learning | [DuktigYajie/SOG-Net](https://github.com/DuktigYajie/SOG-Net) |
-| 2025 | [A Universal Augmentation Framework for Long-Range Electrostatics in MLIPs](https://doi.org/10.1021/acs.jctc.5c01400) | Standalone LES augmentation for short-range MLIPs | [BingqingCheng/cace](https://github.com/BingqingCheng/cace), [cace-lr-fit](https://github.com/BingqingCheng/cace-lr-fit) |
-| 2025 | [Latent Ewald Summation for Machine Learning of Long-Range Interactions](https://doi.org/10.1038/s41524-025-01577-7) | Hidden variable + Ewald summation learned from energies/forces | [BingqingCheng/cace](https://github.com/BingqingCheng/cace), [cace-lr-fit](https://github.com/BingqingCheng/cace-lr-fit) |
-| 2025 | [Machine learning interatomic potential can infer electrical response](https://www.nature.com/articles/s41524-025-01911-z) | LES for Born effective charges and electrical response | [BingqingCheng/LES-BEC](https://github.com/BingqingCheng/LES-BEC) |
-| 2025 | [BAMBOO: predictive ML force-field framework for liquid electrolyte development](https://www.nature.com/articles/s42256-025-01023-x) | Electrolyte MLFF with charge-informed long-range treatment | [bytedance/bamboo](https://github.com/bytedance/bamboo) |
-| 2025 | [Foundation MLIP with Polarizable Long-Range Interactions](https://doi.org/10.XXXX/XXXXX) | Foundation model incorporating polarization and long-range electrostatics | Code TBA |
-| 2025 | [CELLI: Charge Equilibration for Long-Range Interactions](https://doi.org/10.XXXX/XXXXX) | Charge equilibration method for accurate long-range electrostatics in MLIPs | Code TBA |
-| 2024 | [Incorporating long-range electrostatics via variational charge equilibration](https://www.nature.com/articles/s41524-024-01226-5) | Variational charge equilibration from local ingredients | [PANNA](https://gitlab.com/PANNAdevs/panna) |
-| 2024 | [SO3LR: Molecular Simulations with Pretrained NN Pairwise FF](https://doi.org/10.XXXX/XXXXX) | Pretrained neural network with pairwise force field for long-range molecular simulations | Code TBA |
-| 2023 | [Ewald-based Long-Range Message Passing for Molecular Graphs](https://arxiv.org/abs/2303.04791) | Reciprocal-space message passing | [arthurkosmala/EwaldMP](https://github.com/arthurkosmala/EwaldMP) |
-| 2023 | [FENNIX: Force Field Enhanced Neural Network](https://doi.org/10.XXXX/XXXXX) | Combines classical force fields with neural networks for long-range interactions | Code TBA |
-| 2022 | [A deep potential model with long-range electrostatic interactions](https://doi.org/10.1063/5.0083669) | DPLR, Wannier centers, periodic electrostatics | [deepmodeling/deepmd-kit](https://github.com/deepmodeling/deepmd-kit) |
-| 2021 | [SpookyNet: learning force fields with electronic degrees of freedom and nonlocal effects](https://doi.org/10.1038/s41467-021-27504-0) | Charges, spins, electrostatics, dispersion | [OUnke/SpookyNet](https://github.com/OUnke/SpookyNet) |
-| 2021 | [Fourth-generation HDNNP with non-local charge transfer](https://doi.org/10.1038/s41467-020-20427-2) | Global charge equilibration for electrostatics | [CompPhysVienna/n2p2](https://github.com/CompPhysVienna/n2p2) |
-| 2019 | [PhysNet](https://doi.org/10.1021/acs.jctc.9b00181) | Energies, forces, dipoles, partial charges, electrostatics, dispersion | [MMunibas/PhysNet](https://github.com/MMunibas/PhysNet) |
+<!-- TODO: curate core papers and code manually. -->
 
 ---
 
@@ -175,16 +151,16 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 | Method | Main idea | Notes |
 |---|---|---|
-| [PhysNet](https://doi.org/10.1021/acs.jctc.9b00181) | Predicts partial charges and dipoles together with energies/forces | Good starting point for molecular electrostatics-aware NNPs |
-| [SpookyNet](https://doi.org/10.1038/s41467-021-27504-0) | Adds electronic degrees of freedom and nonlocal effects | Covers charge/spin-dependent molecular systems |
-| [4G-HDNNP](https://doi.org/10.1038/s41467-020-20427-2) | Neural atomic energy + global charge equilibration | Designed for charge transfer and long-range electrostatics |
-| [AIMNet2](https://github.com/isayevlab/aimnetcentral) | Charge-aware neural potential with Ewald/DSF and D3 support in current code | Practical molecular toolkit with ASE and PySisyphus interfaces |
-| [AIMNet-NSE](https://doi.org/10.1038/s41467-021-27504-0) | Neural sum of energies approach with charge prediction | Extends AIMNet with improved charge modeling |
-| [Variational charge equilibration](https://www.nature.com/articles/s41524-024-01226-5) | Builds long-range electrostatics from short-range predicted quantities | Implemented in the PANNA ecosystem |
-| [BAMBOO](https://github.com/bytedance/bamboo) | Electrolyte force-field framework with ML charges and liquid-electrolyte focus | Useful for ionic/polar condensed phases |
-| [HIPNN Charge](https://doi.org/10.1021/acs.jpclett.8b00684) | Hierarchical interacting particle neural network with charge prediction | Efficient charge-aware architecture |
-| [SCFNN](https://doi.org/10.1038/s41467-022-29243-2) | Self-consistent field neural network for charge equilibration | Iterative charge determination with neural networks |
-| [BpopNN](https://doi.org/10.1021/acs.jctc.0c00217) | Bond-order potential neural network with charge transfer | Combines bond-order concepts with ML charges |
+| [PhysNet](https://doi.org/10.1021/acs.jctc.9b00181) | Predicts partial charges and dipoles together with energies/forces | Multitask energy/charge learning; predicted charges enter an explicit electrostatic term and dipoles are trained as observables. [Note](notes/PhysNet_Unke_Meuwly_JCTC_2019.mmd) |
+| [SpookyNet](https://doi.org/10.1038/s41467-021-27504-0) | Adds electronic degrees of freedom and nonlocal effects | Uses total charge/spin embeddings, nonlocal interactions, and analytic electrostatic/dispersion corrections to handle electronic-state ambiguity and nonlocality. [Note](notes/SpookyNet_Unke_NatComm_2021.mmd) |
+| [4G-HDNNP](https://doi.org/10.1038/s41467-020-20427-2) | Neural atomic energy + global charge equilibration | Uses QEq over NN-predicted electronegativities; the resulting global charges feed both long-range electrostatics and short-range atomic networks. [Note](notes/FourGNNP_Ko_Behler_NatComm_2021.mmd) |
+| [AIMNet2](https://github.com/isayevlab/aimnetcentral) | Charge-aware neural potential with Ewald/DSF and D3 support in current code | No dedicated AIMNet2 note yet; related notes cover original AIMNet and AIMNet-NSE. [AIMNet SI](notes/AIMNet_Zubatyuk_SciAdv_2019_SI.mmd), [AIMNet-NSE note](notes/AIMNet_NSE_Zubatyuk_NatComm_2021.mmd) |
+| [AIMNet-NSE](https://doi.org/10.1038/s41467-021-24904-0) | Neural sum of energies approach with charge prediction | Neural spin-charge equilibration conserves total spin charges by construction, enabling one model across neutral, cationic, anionic, and spin states. [Note](notes/AIMNet_NSE_Zubatyuk_NatComm_2021.mmd) |
+| [Variational charge equilibration](https://www.nature.com/articles/s41524-024-01226-5) | Builds long-range electrostatics from short-range predicted quantities | No mmd note in this repository yet. |
+| [BAMBOO](https://github.com/bytedance/bamboo) | Electrolyte force-field framework with ML charges and liquid-electrolyte focus | No mmd note in this repository yet. |
+| [HIPNN Charge](https://doi.org/10.1021/acs.jpclett.8b00684) | Hierarchical interacting particle neural network with charge prediction | ACA uses HIP-NN to infer partial charges from molecular dipoles; the learned charges transfer to quadrupoles and larger molecules. [Note](notes/HIPNN_Charge_Sifain_JPCL_2018.mmd) |
+| [SCFNN](https://doi.org/10.1038/s41467-022-29243-2) | Self-consistent field neural network for charge equilibration | Separates Gaussian-truncated short-range physics from long-range electric-field response; MLWFCs and forces are coupled through a self-consistent loop. [Note](notes/SCFNN_Gao_Remsing_NatComm_2022.mmd) |
+| [BpopNN](https://doi.org/10.1021/acs.jctc.0c00217) | Bond-order potential neural network with charge transfer | Treats DFT energy as a function of atom-based electron populations from CDFT; optimizing populations lets electronic terms adapt self-consistently. [Note](notes/BpopNN_Xie_JCTC_2020.mmd) |
 
 </details>
 
