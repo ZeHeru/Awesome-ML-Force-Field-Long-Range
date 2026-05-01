@@ -2,7 +2,7 @@
 
 This folder contains mind map notes (`.mmd` files) for papers related to long-range interactions in machine learning force fields.
 
-## Available Notes (38 papers)
+## Available Notes (43 note files)
 
 ### Review Papers
 - [machine-learning-interatomic-potentials-and-long-range-physics.mmd](machine-learning-interatomic-potentials-and-long-range-physics.mmd) - Comprehensive review on long-range physics in MLIPs
@@ -20,6 +20,7 @@ This folder contains mind map notes (`.mmd` files) for papers related to long-ra
 - [SCFNN_Gao_Remsing_NatComm_2022.mmd](SCFNN_Gao_Remsing_NatComm_2022.mmd) - Self-consistent field neural network
 - [BpopNN_Xie_JCTC_2020.mmd](BpopNN_Xie_JCTC_2020.mmd) - Bond-order potential neural network
 - [CENT_Ghasemi_PRB_2015.mmd](CENT_Ghasemi_PRB_2015.mmd) - Charge equilibration neural network
+- [BAMBOO.mmd](BAMBOO.mmd) - Liquid electrolyte MLFF framework
 
 ### Ewald and Long-Range Methods
 - [LES_Universal_Augmentation_Long_Range.mmd](LES_Universal_Augmentation_Long_Range.mmd) - Latent Ewald summation augmentation
@@ -35,6 +36,9 @@ This folder contains mind map notes (`.mmd` files) for papers related to long-ra
 - [LongRange_ChargedDimers_Grisafi_Ceriotti_JCP_2019.mmd](LongRange_ChargedDimers_Grisafi_Ceriotti_JCP_2019.mmd) - Long-range interactions in charged dimers
 - [ShortRange_ML_Limits_Yue_JCP_2021.mmd](ShortRange_ML_Limits_Yue_JCP_2021.mmd) - Limitations of short-range ML models
 
+### Polarization, Multipoles, and Electric Response
+- [Machine_learning_interatomic_potential_can_infer_electrical_response.mmd](Machine_learning_interatomic_potential_can_infer_electrical_response.mmd) - LES-based electrical response, polarization, and Born effective charges
+
 ### Dispersion and van der Waals
 - [MBD_Benzene_Tkatchenko_PRL_2012.mmd](MBD_Benzene_Tkatchenko_PRL_2012.mmd) - Many-body dispersion
 - [vdW_Water_Morawietz_PNAS_2016.mmd](vdW_Water_Morawietz_PNAS_2016.mmd) - van der Waals interactions in water
@@ -46,6 +50,8 @@ This folder contains mind map notes (`.mmd` files) for papers related to long-ra
 
 ### Neural Network Architectures
 - [SchNet_Schutt_JCP_2018.mmd](SchNet_Schutt_JCP_2018.mmd) - SchNet continuous-filter convolutions
+- [SchNetPack.mmd](SchNetPack.mmd) - SchNetPack atomistic deep learning toolbox
+- [SchNetPack_2.mmd](SchNetPack_2.mmd) - SchNetPack 2.0 atomistic machine learning toolbox
 - [DTNN_Schutt_NatComm_2017.mmd](DTNN_Schutt_NatComm_2017.mmd) - Deep tensor neural networks
 
 ### Application Studies
@@ -56,6 +62,9 @@ This folder contains mind map notes (`.mmd` files) for papers related to long-ra
 - [Li3N_ESNAP_Deng_Ong_npjCM_2019.mmd](Li3N_ESNAP_Deng_Ong_npjCM_2019.mmd) - Li3N with ESNAP
 - [NNRF_CHNO_RDX_Yoo_npjCM_2021.mmd](NNRF_CHNO_RDX_Yoo_npjCM_2021.mmd) - Neural network reactive force field for RDX
 
+### Needs Review
+- [Variational_charge_equilibration.mmd](Variational_charge_equilibration.mmd) - Filename suggests variational charge equilibration, but the current title/content appear to describe electron-microscopy image segmentation; verify before linking as a valid long-range MLFF note.
+
 ## Papers Without MMD Notes
 
 The following papers mentioned in the main README do not yet have mind map notes:
@@ -65,14 +74,14 @@ The following papers mentioned in the main README do not yet have mind map notes
 - ✅ ~~Latent Ewald Summation (2025)~~ - **Added!**
 - ✅ ~~SOG-Net (2025, 2026)~~ - **Added!**
 - ✅ ~~CACE-SOG coupling (2026)~~ - **Added!**
-- BAMBOO (2025)
+- ✅ ~~BAMBOO (2025)~~ - **Added!**
 - ✅ ~~Foundation MLIP with Polarizable Long-Range (2025)~~ - **Added!**
 - CELLI (Charge Equilibration, 2025)
 - ✅ ~~FENNIX (Force Field Enhanced NN, 2023)~~ - **Added!**
 - ✅ ~~Long-Range Electrostatics Made Easier (2026)~~ - **Added!**
 - EwaldMP (2023)
-- Variational charge equilibration (2024)
-- LES for Born effective charges (2025)
+- Variational charge equilibration (2024) - candidate mmd needs review
+- ✅ ~~LES for Born effective charges (2025)~~ - **Added!**
 - Reciprocal Space Neural Network
 
 ### Datasets
@@ -90,6 +99,7 @@ No dataset-specific mmd notes have been added yet. The current paper/data links 
 ### Software
 - AIMNetCentral
 - DMFF
+- ✅ ~~SchNetPack~~ - **Added!**
 - ✅ ~~FeNNol/FeNNix~~ - **Added!**
 
 ---
