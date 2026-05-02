@@ -207,10 +207,21 @@ If you discover a missing paper, dataset, benchmark, or codebase, please open a 
 
 ---
 
+## 🏆 Benchmarks
+
+| Benchmark | Description | Links |
+|---|---|---|
+| **MLIP Arena v1** | Benchmark platform evaluating MLIPs on physics awareness (PECs, EOS), chemical reactivity (hydrogen combustion), and thermodynamic properties (vacancy migration, phase transitions). Focuses on physical soundness beyond error-based metrics. | [arXiv](https://arxiv.org/abs/2501.xxxxx), [code](https://github.com/atomind-ai/mlip-arena), [leaderboard](https://huggingface.co/spaces/atomind/mlip-arena), [Note](notes/MLIP_Arena_Chiang_2025_v1.mmd) |
+| **MLIP Arena v2** | Extended version with additional benchmarks including MD stability under extreme conditions (NVT/NPT), distribution shift robustness (energy conservation, rotational equivariance), and extended case studies (CO₂ adsorption in MOFs, 2D materials stability). | [NeurIPS 2025](https://neurips.cc/virtual/2025/poster/xxxxx), [arXiv](https://arxiv.org/abs/2501.xxxxx), [code](https://github.com/atomind-ai/mlip-arena), [Note](notes/MLIP_Arena_Chiang_2025_v2.mmd) |
+
+---
+
 ## 🧪 Datasets and Benchmarks
 
 | Dataset | Long-range relevance | Link |
 |---|---|---|
+| **OC25** | 7.8M+ solid-liquid interface structures with explicit solvents (water, acetonitrile, etc.) and ions; critical for understanding electrolyte effects in electrocatalysis and long-range electrostatics at charged interfaces | [arXiv](https://arxiv.org/abs/2509.xxxxx), [data](https://huggingface.co/facebook/OC25), [models](https://huggingface.co/facebook/OC25), [Note](notes/OC25_Solid_Liquid_Interfaces_Sahoo_arXiv_2025.mmd) |
+| **OMC25** | 27M+ molecular crystal structures with PBE+D3 dispersion correction; diverse intermolecular interactions (H-bonds, π-π stacking, van der Waals) across 88 elements and multiple space groups | [Sci. Data 2026](https://doi.org/10.1038/s41597-026-06628-2), [data](https://huggingface.co/datasets/facebook/OMC25), [models](https://huggingface.co/facebook/OMC25), [Note](notes/OMC25_Open_Molecular_Crystals_Gharakhanyan_SciData_2026.mmd) |
 | SPICE | Molecular dimers, solvated fragments, ions; useful for electrostatics and dispersion | [paper](https://doi.org/10.1038/s41597-022-01882-6), [code/data](https://github.com/openmm/spice-dataset) |
 | DES370K | High-quality noncovalent interaction energies for dispersion / H-bond / electrostatics | [paper](https://doi.org/10.1038/s41597-021-00833-x), [data](https://zenodo.org/record/4910158) |
 | QM7-X | Off-equilibrium molecules with quantum properties, forces, dipoles | [paper](https://doi.org/10.1038/s41597-020-0473-z) |
