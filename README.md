@@ -12,7 +12,11 @@
 <img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20Catalysis-4BC88C" alt="Topics">
 <br>
 <img src="https://img.shields.io/badge/Update%20🔥-2026.05.05-red" alt="Update">
+<img src="https://img.shields.io/badge/Maintained-actively-brightgreen" alt="Actively Maintained">
 <img src="https://img.shields.io/badge/PRs-Welcome-orange" alt="PRs Welcome">
+<br>
+<br>
+<b>🔥 This is a living repository, actively maintained and continuously updated with new papers, datasets, benchmarks, and code releases. 🔥</b>
 <br>
 <br>
 You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/eyes-emoji.png" alt="Watch Icon"/> Watch</b> and <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/star-emoji.png" alt="Star Icon"/> Star</b> to get the latest updates at any time.
