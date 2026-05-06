@@ -11,7 +11,7 @@
 <img src="https://img.shields.io/badge/Focus-Long--Range%20%26%20Reactive-blue" alt="Long Range & Reactive">
 <img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20Catalysis-4BC88C" alt="Topics">
 <br>
-<img src="https://img.shields.io/badge/Update%20🔥-2026.05.05-red" alt="Update">
+<img src="https://img.shields.io/badge/Update%20🔥-2026.05.06-red" alt="Update">
 <img src="https://img.shields.io/badge/Maintained-actively-brightgreen" alt="Actively Maintained">
 <img src="https://img.shields.io/badge/PRs-Welcome-orange" alt="PRs Welcome">
 <br>
@@ -52,6 +52,12 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 ---
 
 ## 💙 News
+
+**[2026/05/06] [V0.4] Expanded reactive MLFF review and perspective list.**
+
+- Added focused reviews on reactive MLIPs, reaction PESs, transition-state prediction, and data generation
+- Added adjacent equivariant/general MLIP, catalysis, and electrochemistry perspectives relevant to reactive workflows
+- Corrected the Chemical Reviews 2026 citation for reactive MLIPs
 
 **[2026/05/05] [V0.3] Merged long-range and reactive MLFF repositories.**
 
@@ -101,16 +107,31 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | Global message passing | Ewald features, global nodes, Fourier convolution | Adds nonlocal communication to GNNs | May still need physics priors for asymptotics |
 | Dispersion correction | D3/D4/MBD or learned dispersion tail | Cheap and robust for vdW | Double-counting if base model already learned it |
 
-### Reactive Chemistry Methods
+### Reactive MLFF Problem Map
 
-| Family | Typical data | Main task | Typical caveat |
+Reactive MLFFs are better organized as a workflow plus a chemistry scope, rather than as a single flat list of methods. The key distinction is whether a resource helps generate reactive data, fit a potential, search reaction paths, or validate chemical correctness.
+
+#### Reactive MLFF Workflow
+
+| Stage | Typical methods or data | What it solves | Typical caveat |
 |---|---|---|---|
-| Reaction-path datasets | NEB/IRC/GSM paths, TSs, reactants/products | Train MLIPs that see bond breaking/forming | Chemistry scope may be narrow |
-| Nanoreactor / active learning | High-T/P reactive MD + uncertainty selection | General condensed-phase reactivity | Needs robust uncertainty and filtering |
-| TS/Hessian datasets | Hessians, saddle points, TS guesses | Faster TS optimization and validation | Second derivatives are expensive labels |
-| General reactive MLIPs | ANI-1xnr, AIMNet2-rxn, open-shell variants | Out-of-the-box organic reaction modeling | Element/spin/charge scope must be respected |
-| Catalysis MLIPs | Organometallic or surface reaction data | Mechanism and catalyst screening | Transfer outside ligand/metal scope is hard |
-| ML-assisted path search | ML-NEB, BNEB, ML Hessians, Sella | Faster barriers and reaction networks | Product identity and path correctness must be checked |
+| Reactive data generation | NEB, IRC, GSM, TS searches, AFIR, endpoint/geodesic interpolation | Samples bond-breaking/forming regions and transition paths | Expensive QM optimization or mechanism bias |
+| Rare-event sampling | High-T reactive MD, nanoreactors, umbrella sampling, metadynamics | Reaches reactive configurations not seen near minima | Can generate noisy, unphysical, or redundant structures |
+| Active learning | Ensembles, query-by-committee, uncertainty-driven MD, DP-GEN-style loops | Expands the training set where the current MLIP is unreliable | Uncertainty indicators need filtering and OOD checks |
+| Reactive model fitting | ANI-1xnr, AIMNet2-rxn/NSE, MACE, NequIP, Allegro, NewtonNet | Learns reactive PESs for target chemistry and dynamics | Element, charge, spin, phase, and metal scope must be respected |
+| Path and TS workflows | ML-NEB, Sella, PySisyphus, IRC, ML Hessians | Accelerates TS optimization, reaction paths, and mechanism exploration | ML-found paths need QM validation for critical claims |
+| Chemical validation | Barrier heights, reaction energies, TS modes, Hessians, graph matching | Tests whether the learned PES gives the right chemistry | Force RMSE alone is not sufficient |
+
+#### Reactive Chemistry Scopes
+
+| Scope | Representative systems | Special difficulty |
+|---|---|---|
+| Closed-shell organic reactions | Pericyclic reactions, substitutions, rearrangements, bond dissociation | Coverage of TS and off-equilibrium reaction paths |
+| Radical and open-shell chemistry | Combustion, polymerization, radical intermediates | Spin states, charge states, and electronic-state transferability |
+| Condensed-phase reactivity | Nanoreactors, solution reactions, prebiotic chemistry, biofuel chemistry | Many species, rare events, solvation, and long trajectories |
+| Surface catalysis | Methane activation, CO2 reduction, adsorbate reactions | Surfaces, adsorbates, PBCs, and metal-support interactions |
+| Organometallic catalysis | Pd cross-coupling, ligand effects, transition-metal TSs | Oxidation states, coordination changes, ligand diversity, spin |
+| Electrolyte and electrochemistry | Electrolyte decomposition, SEI chemistry, charged interfaces | Ions, radicals, long-range electrostatics, and reactive solvation |
 
 ---
 
@@ -141,6 +162,7 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | [PhysNet](https://doi.org/10.1021/acs.jctc.9b00181) (J. Chem. Theory Comput., 2019) | Predicts partial charges and dipoles together with energies/forces | Multitask energy/charge learning; predicted charges enter an explicit electrostatic term and dipoles are trained as observables. |
 | [SpookyNet](https://doi.org/10.1038/s41467-021-27504-0) (Nat. Commun., 2021) | Adds electronic degrees of freedom and nonlocal effects | Uses total charge/spin embeddings, nonlocal interactions, and analytic electrostatic/dispersion corrections. |
 | [4G-HDNNP](https://doi.org/10.1038/s41467-020-20427-2) (Nat. Commun., 2021) | Neural atomic energy + global charge equilibration | Uses QEq over NN-predicted electronegativities; the resulting global charges feed both long-range electrostatics and short-range atomic networks. |
+| [TensorMol-0.1](https://doi.org/10.1039/C7SC04934J) (Chem. Sci., 2018) | Short-range NN model chemistry augmented with learned charges and long-range physics | Historical hybrid NNP combining Behler-Parrinello short-range terms, dipole-fitted charges, damped Coulomb, and vdW corrections. |
 | [AIMNet2](https://github.com/isayevlab/aimnetcentral) | Charge-aware neural potential with Ewald/DSF and D3 support | Current AIMNetCentral models include spin/charge-aware variants and long-range electrostatics support. |
 | [AIMNet-NSE](https://doi.org/10.1038/s41467-021-24904-0) (Nat. Commun., 2021) | Neural sum of energies approach with charge prediction | Neural spin-charge equilibration conserves total spin charges by construction. |
 | [BAMBOO](https://doi.org/10.1038/s42256-025-01009-7) (Nat. Mach. Intell., 2025) | Electrolyte force-field framework with ML charges | Graph equivariant transformer MLFF for liquid electrolytes with semi-local, QEq electrostatic, and D3 dispersion terms. |
@@ -178,6 +200,7 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | [ANI-2X/AMOEBA](https://doi.org/10.1039/d2sc04815a) (Chem. Sci., 2023) | Hybrid DNN/polarizable potential route for biomolecular simulations | Couples ANI-2X solute interactions with AMOEBA polarizable solvent/environment. |
 | [Multipolar electrostatic kriging](https://doi.org/10.1021/acs.jctc.6b00457) (J. Chem. Theory Comput., 2016) | Learns geometry-dependent atomic multipoles for polarizable electrostatics | Uses kriging to predict QTAIM atomic multipoles for all natural amino acids. |
 | [SchNetPack](https://doi.org/10.1021/acs.jcim.9b00181) (J. Chem. Inf. Model., 2019) | Atomistic ML toolkit with modules for atomistic properties | SchNetPack framework and the 2.0 rewrite provide extensible tooling for MLFF workflows. |
+| [FENNIX-OP1](https://doi.org/10.1039/D3SC02581K) (Chem. Sci., 2023) | Force-field-enhanced equivariant NNP with learned atom-in-molecule properties | Uses ML charges and atomic volumes to parameterize charge-penetration electrostatics and Tkatchenko-Scheffler dispersion; validated on water, alanine dipeptide, and gas-phase protein dynamics. |
 | [FeNNol / FeNNix](https://doi.org/10.1063/5.0217688) (J. Chem. Phys., 2024) | Force-field-enhanced NNP direction | Modular JAX library for building force-field-enhanced NNPs. |
 
 </details>
@@ -188,6 +211,7 @@ If you discover missing work, please submit a pull request or issue. Include a s
 |---|---|---|
 | [DFT-D3](https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3) | Empirical dispersion correction often paired with MLFFs | [dftd3/simple-dftd3](https://github.com/dftd3/simple-dftd3), [tad-dftd3](https://github.com/tad-mctc/tad-dftd3) |
 | [DFT-D4](https://www.chemie.uni-bonn.de/grimme/de/software/dft-d4) | Charge-dependent dispersion correction | [dftd4/dftd4](https://github.com/dftd4/dftd4) |
+| [ANIPBE0-MLXDM](https://doi.org/10.1039/D2DD00150K) (Digital Discovery, 2023) | ANI-style NNP with ML-predicted XDM long-range dispersion | Learns environment-dependent C6/C8/C10 coefficients and improves DES370K intermolecular energies against CCSD(T). |
 | [MBD](https://doi.org/10.1103/PhysRevLett.108.236402) (Phys. Rev. Lett., 2012) | Many-body dispersion method with self-consistent screening | Accurate treatment of frequency-dependent polarizability and many-body vdW energy. |
 | [vdW in water](https://doi.org/10.1073/pnas.1602375113) (PNAS, 2016) | Demonstrates essential role of vdW forces in water properties | Shows that vdW interactions are crucial for water's density maximum. |
 | [SO3LR](https://doi.org/10.1021/jacs.4c14713) (J. Am. Chem. Soc., 2025) | Combines SO3krates NN with universal pairwise force fields | Integrates semilocal SO3krates with ZBL repulsion, electrostatics, and universal vdW dispersion. |
@@ -225,12 +249,36 @@ If you discover missing work, please submit a pull request or issue. Include a s
 
 ### 📖 Reviews and Perspectives (Reactive)
 
+This list prioritizes review/perspective papers that are useful for **equivariant MLFFs for reactions**: reactive MLIP architecture, reaction-path/TS data, active learning, reactive dynamics, catalysis, and electrochemical reactivity.
+
 | Resource | Focus | Summary |
 |---|---|---|
+| [Reactive machine learning interatomic potentials for chemistry and materials science](https://doi.org/10.1021/acs.chemrev.5c00728) (Chem. Rev., 2026) | Core reactive MLIP review with explicit architecture/data-acquisition framing | Especially relevant to this repo: descriptor-based models to equivariant GNNs, active learning for transition states and reaction paths, pretrained/reactive MLIP outlook. |
 | [Machine learning of reactive potentials](https://doi.org/10.1146/annurev-physchem-062123-024417) (Annu. Rev. Phys. Chem., 2024) | Comprehensive review of ML potentials for reactive chemistry | Covers reactive data generation, active learning, transition state search, and applications in combustion and catalysis. |
-| [Reactive machine learning interatomic potentials for chemistry and materials science](https://doi.org/10.1038/s43588-024-00746-5) (Nat. Comput. Sci., 2024) | Perspective on reactive MLIPs for chemistry and materials | Discusses challenges in training data, model architectures, and validation for reactive systems. |
+| [The evolution of machine learning potentials for molecules, reactions and materials](https://doi.org/10.1039/D5CS00104H) (Chem. Soc. Rev., 2025) | Broad MLP review with dedicated coverage of reactions and universal potentials | Useful bridge between molecular reaction PESs, equivariant architectures, and material/catalysis applications. |
+| [Neural network potential energy surfaces for small molecules and reactions](https://doi.org/10.1021/acs.chemrev.0c00665) (Chem. Rev., 2021) | Review of NN PES construction for small molecules and reaction dynamics | Strong background for high-accuracy reactive PES fitting, symmetry, sampling, observables, and quantum/classical dynamics. |
+| [Machine learning for chemical reactions](https://doi.org/10.1021/acs.chemrev.1c00033) (Chem. Rev., 2021) | Broad review of ML across chemical reaction problems | Adjacent to MLFF but valuable for reaction dynamics, reactive networks, and how ML connects simulation with reaction planning/experiments. |
 | [Machine learning force fields](https://doi.org/10.1021/acs.chemrev.0c01111) (Chem. Rev., 2021) | Broad MLFF review; useful background for reactive MLIPs | Comprehensive overview of MLFF methods, training strategies, and applications. |
-| [Neural network reactive force field for C/H/N/O systems](https://doi.org/10.1021/acs.jpca.0c05992) (J. Phys. Chem. A, 2020) | Early neural network reactive force field for CHNO chemistry | Demonstrates feasibility of NN-based reactive potentials for organic systems. |
+| [Neural network potentials for chemistry: concepts, applications and prospects](https://pubs.rsc.org/en/content/articlelanding/2023/dd/d2dd00102k) (Digital Discovery, 2023) | Chemistry-facing NNP review and PES-building workflow | Good entry point for PES construction, transfer learning, spectroscopy/dynamics, and practical chemistry applications. |
+| [High-dimensional potential energy surfaces for molecular simulations: from empiricism to machine learning](https://doi.org/10.1088/2632-2153/ab5922) (Mach. Learn.: Sci. Technol., 2020) | Perspective on high-dimensional PESs for molecular simulation and reactions | Useful historical bridge from empirical reactive force fields and PIP/RKHS PESs to NN potentials. |
+| [Machine learning for molecular simulation](https://doi.org/10.1146/annurev-physchem-042018-052331) (Annu. Rev. Phys. Chem., 2020) | ML for energies/forces, free energies, kinetics, and sampling | Helpful context for reactive MD, free-energy surfaces, kinetics extraction, and enhanced sampling workflows. |
+| [Atomistic simulations for reactions and vibrational spectroscopy in the era of machine learning - Quo Vadis?](https://doi.org/10.1021/acs.jpcb.2c00212) (J. Phys. Chem. B, 2022) | Perspective on reactive atomistic simulation and ML energy functions | Useful for connecting reactive PESs, spectroscopy, long-range/multipolar physics, and ML-driven dynamics. |
+| [Data generation for machine learning interatomic potentials and beyond](https://doi.org/10.1021/acs.chemrev.4c00572) (Chem. Rev., 2024) | Review of MLIP training-data design and active learning | Directly relevant to reactive MLFFs because reaction success often depends more on TS/pathway/OOD data than on force RMSE alone. |
+| [Strategies for the construction of machine-learning potentials for accurate and efficient atomic-scale simulations](https://doi.org/10.1088/2632-2153/abfd96) (Mach. Learn.: Sci. Technol., 2021) | Tutorial review on MLIP data collection, training, validation, testing, and refinement | Practical guide for building task-specific reactive potentials and active-learning loops. |
+| [A practical guide to machine learning interatomic potentials - status and future](https://doi.org/10.1016/j.cossms.2025.101214) (Curr. Opin. Solid State Mater. Sci., 2025) | Practical MLIP user guide and status/future overview | Useful for deciding when to fine-tune a pretrained potential versus building a reactive dataset from scratch. |
+| [Machine learning approaches for transition state prediction](https://doi.org/10.1016/j.checat.2025.101458) (Chem Catalysis, 2025) | Review of ML-assisted TS prediction and search | Adjacent but important for reactive MLFF workflows; covers modern equivariant/generative TS models and validation challenges. |
+| [The potential of neural network potentials](https://doi.org/10.1021/acsphyschemau.4c00004) (ACS Phys. Chem. Au, 2024) | Perspective on the impact of equivariant NNPs in physical chemistry | Good concise motivation for why equivariant NNPs change feasible reaction and molecular simulation scales. |
+| [Advancing molecular simulation with equivariant interatomic potentials](https://doi.org/10.1038/s42254-023-00615-x) (Nat. Rev. Phys., 2023) | Short perspective on equivariant interatomic potentials | Useful for the symmetry/equivariance rationale behind NequIP, Allegro, MACE-style reactive MLFFs. |
+| [Recent advances and outstanding challenges for machine learning interatomic potentials](https://doi.org/10.1038/s43588-023-00561-9) (Nat. Comput. Sci., 2023) | Status/challenges perspective for modern MLIPs | Concise overview of graph/equivariant MLIPs, transferability, data, and benchmark limitations. |
+| [Machine learning interatomic potentials at the centennial crossroads of quantum mechanics](https://doi.org/10.1038/s43588-025-00930-6) (Nat. Comput. Sci., 2025) | Perspective on MLIPs in the broader quantum-chemistry landscape | Useful for positioning pretrained/foundation MLIPs and reactive quantum-chemistry workflows. Summary entry not yet added. |
+| [Extending machine learning beyond interatomic potentials for predicting molecular properties](https://doi.org/10.1038/s41570-022-00416-3) (Nat. Rev. Chem., 2022) | Review of learned charges, dipoles, spin/electron densities, bonding, and Hamiltonians | Important background for reactive systems where charge, spin, radical character, and bond order matter. |
+| [Machine learning interatomic potentials for catalysis](https://doi.org/10.1002/chem.202401148) (Chem. Eur. J., 2024) | Review of MLIP applications and best practices for catalytic systems | Good catalysis-specific complement for surface reactions, CO2 reduction, water splitting, and adsorbate dynamics. Summary entry not yet added. |
+| [Machine learning potentials for heterogeneous catalysis](https://doi.org/10.1021/acscatal.4c06717) (ACS Catal., 2025) | Perspective on MLPs for heterogeneous catalysis | Focuses on atomistic simulation of catalytic mechanisms and dynamic interfaces with near-DFT accuracy. |
+| [Application of machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1016/j.jcat.2025.116202) (J. Catal., 2025) | Review of MLIPs across thermal, electro-, and photocatalysis | Useful application-focused survey for active sites, surface reconstruction, solid-liquid interfaces, transferability, and nonlocal-interaction limitations. |
+| [The future of foundation machine learning potentials and DFT in homogeneous catalysis: competition or synergy?](https://doi.org/10.1002/chem.71022) (Chem. Eur. J., 2026) | Perspective on foundation MLIPs for homogeneous and organometallic catalysis | Very relevant to reaction workflows with ligands, oxidation states, TS exploration, uncertainty, solvation, open-shell, and multireference edge cases. |
+| [Challenges and opportunities of pretrained machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1021/acscatal.5c08945) (ACS Catal., 2026) | Perspective on pretrained/foundation MLIPs for catalysis | Useful for assessing zero-shot/fine-tuned MLIPs on reactive surface chemistry and standardized benchmarks. |
+| [Machine learning force fields in electrochemistry: from fundamentals to applications](https://doi.org/10.1021/acsnano.5c05553) (ACS Nano, 2025) | Review of MLFF foundations and electrochemical applications | Strong fit for electrolyte/electrode reactions, ionics, free-energy landscapes, and electrochemical reaction thermodynamics/kinetics. |
+| [Neural network reactive force field for C/H/N/O systems](https://doi.org/10.1021/acs.jpca.0c05992) (J. Phys. Chem. A, 2020) | Early neural network reactive force-field reference for CHNO chemistry | Demonstrates feasibility of NN-based reactive potentials for organic systems. |
 
 ---
 
@@ -241,7 +289,7 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | Model | Chemistry scope | Summary |
 |---|---|---|
 | [ANI-1xnr](https://github.com/atomistic-ml/ani-1xnr) (Nat. Chem., 2024) | CHNO condensed-phase reactive chemistry | Validated on combustion, carbon nucleation, graphene ring formation, biofuel additives, glycine formation. |
-| [AIMNet2-rxn](https://huggingface.co/isayevlab/aimnet2-rxn) (ChemRxiv, 2025) | H/C/N/O closed-shell organic reaction modeling | Designed for TS, NEB, IRC, and reaction-coordinate accuracy. |
+| [AIMNet2-rxn](https://doi.org/10.26434/chemrxiv-2025-hpdmg) (ChemRxiv, 2025) | H/C/N/O closed-shell organic reaction modeling | Designed for TS, NEB, IRC, and reaction-coordinate accuracy. [Model](https://huggingface.co/isayevlab/aimnet2-rxn) |
 | [AIMNet2-NSE](https://github.com/isayevlab/aimnetcentral) | Open-shell / radical chemistry | Current AIMNetCentral model family includes spin/charge-aware variants. |
 | [AIMNet2-Pd](https://doi.org/10.26434/chemrxiv-2025-n36r6) (ChemRxiv, 2025) | Pd cross-coupling reactions | Targets oxidative addition, transmetalation, reductive elimination, and catalyst screening. |
 | [NewtonNet](https://github.com/THGLab/NewtonNet) (Nat. Commun., 2024) | Organic TS optimization with ML Hessians | Differentiable model used for analytical Hessian workflows. |
@@ -267,6 +315,7 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | Tool / Paper | Role in reactive MLFF workflows | Summary |
 |---|---|---|
 | [Active learning metadynamics](https://doi.org/10.1039/D5DD00271K) (Digital Discovery, 2026) | Combines active learning with metadynamics for reactive MLIP training | Efficient exploration of reactive pathways with uncertainty-driven sampling. |
+| [Force-free molecular dynamics through autoregressive equivariant networks](https://doi.org/10.1038/s42256-026-01227-7) (Nat. Mach. Intell., 2026) | Equivariant trajectory forecasting with TrajCast | Not an energy-force MLIP, but relevant as a force-free route for long-timescale sampling and future reactive trajectory generation. |
 | [NeuralNEB](https://gitlab.com/matschreiner/neuralneb) | Uses ML potentials for NEB path search on Transition1x-style reactions | PaiNN + Transition1x for fast NEB reaction paths. |
 | [Sella](https://github.com/zadorlab/sella) | ASE transition-state optimizer | Integrates with ML calculators and Hessians. |
 | [PySisyphus](https://github.com/eljost/pysisyphus) | Reaction path, IRC, and TS optimization framework | Supported by AIMNetCentral extras. |
@@ -296,8 +345,8 @@ If you discover missing work, please submit a pull request or issue. Include a s
 | [Transition1x](https://doi.org/10.1038/s41597-022-01870-w) (Sci. Data, 2022) | Organic CHNO reactions, NEB paths, DFT energies/forces | 9.6M DFT calculations around 10k organic reaction pathways | [GitLab](https://gitlab.com/matschreiner/Transition1x) |
 | [RGD1](https://doi.org/10.1038/s41597-023-02043-z) (Sci. Data, 2023) | 176k+ organic reactions with validated TSs and barriers | Large and diverse TS/reaction-property benchmark | [GitHub](https://github.com/zhaoqy1996/RGD1), [Zenodo](https://doi.org/10.5281/zenodo.7618731) |
 | [HORM](https://www.nature.com/articles/s41597-025-06350-5) (Sci. Data, 2026) | Hessians from QM9, Transition1x, and RGD1-related geometries | Enables ML Hessian and TS optimizer research | [GitHub](https://github.com/deepprinciple/HORM/releases/tag/v1.0) |
-| [Grambow reaction dataset / RDB7](https://pubs.acs.org/doi/10.1021/acs.jctc.0c00568) (J. Chem. Theory Comput., 2020) | Small organic reaction barriers and TSs | Common benchmark for barrier prediction and TS search | |
-| [BH9 / barrier-height benchmarks](https://doi.org/10.1021/acs.jctc.1c00694) (J. Chem. Theory Comput., 2021) | High-accuracy barrier-height references | Useful for validating reaction energetics | |
+| [Grambow reaction dataset](https://doi.org/10.1038/s41597-020-0460-4) (Sci. Data, 2020) | Small organic reaction barriers and TSs | Common benchmark for barrier prediction and TS search | |
+| [BH9 / barrier-height benchmarks](https://doi.org/10.1021/acs.jctc.1c00694) (J. Chem. Theory Comput., 2022) | High-accuracy barrier-height references | Useful for validating reaction energetics | |
 
 </details>
 
