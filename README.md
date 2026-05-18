@@ -8,10 +8,10 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/Awesome-Survey-8A2BE2" alt="Awesome Survey">
-<img src="https://img.shields.io/badge/Focus-Long--Range%20%26%20Reactive-blue" alt="Long Range & Reactive">
-<img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20Catalysis-4BC88C" alt="Topics">
+<img src="https://img.shields.io/badge/Focus-Long--Range%20%26%20Reactive%20%26%20ConstP-blue" alt="Long Range, Reactive & ConstP">
+<img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20ConstP-4BC88C" alt="Topics">
 <br>
-<img src="https://img.shields.io/badge/Update%20🔥-2026.05.06-red" alt="Update">
+<img src="https://img.shields.io/badge/Update%20🔥-2026.05.18-red" alt="Update">
 <img src="https://img.shields.io/badge/Maintained-actively-brightgreen" alt="Actively Maintained">
 <img src="https://img.shields.io/badge/PRs-Welcome-orange" alt="PRs Welcome">
 <br>
@@ -44,6 +44,11 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
   - [🔬 Models and Methods](#-models-and-methods-reactive)
   - [🧪 Datasets](#-datasets-reactive)
   - [🏆 Benchmarks](#-benchmarks-reactive)
+- [⚡ Constant-Potential Electrochemistry](#-constant-potential-electrochemistry)
+  - [📖 Foundations and Reviews](#-foundations-and-reviews-constant-potential)
+  - [🔬 Models and Methods](#-models-and-methods-constant-potential)
+  - [🧩 Adjacent and Cautionary Methods](#-adjacent-and-cautionary-methods)
+  - [🧪 Codes, Data, and Reproducibility](#-codes-data-and-reproducibility)
 - [Contributing](#contributing)
 - [Cite This Repository](#cite-this-repository)
 - [License](#license)
@@ -52,6 +57,12 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 ---
 
 ## 💙 News
+
+**[2026/05/18] [V0.5] Added constant-potential electrochemistry MLFFs.**
+
+- Added a dedicated section for MLFFs that treat electrode potential or electron chemical potential as an external thermodynamic variable
+- Added CP-MLFF/MACE, CPMPNN, DP-Ne/GC-PIHMC, DPchi, veNNP, and DP-QEq references
+- Added validation guidance for variable electron number, Fermi level/work-function prediction, and grand-canonical sampling
 
 **[2026/05/06] [V0.4] Expanded reactive MLFF review and perspective list.**
 
@@ -80,13 +91,15 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 
 ## Introduction
 
-Modern machine learning force fields face two critical challenges:
+Modern machine learning force fields face three coupled challenges:
 
 **Long-Range Interactions**: Most MLFFs use finite cutoffs and local decomposition, which works well for many systems but fails for charged molecules, polar liquids, interfaces, ionic materials, and systems where electrostatics, dispersion, or polarization remain relevant beyond the cutoff.
 
 **Reactive Chemistry**: Models trained only on equilibrium conformers may have excellent force errors near minima but fail along bond-breaking pathways, transition states, ionic/radical regions, or high-temperature reactive trajectories.
 
-This repository collects methods, datasets, and benchmarks that explicitly address these two challenges.
+**Constant-Potential Electrochemistry**: Electrochemical interfaces add another coupled difficulty: the electrode potential is externally controlled, while electron number, interfacial charge, Fermi level/work function, solvent structure, and reaction barriers can all change during sampling.
+
+This repository collects methods, datasets, and benchmarks that explicitly address these challenges.
 
 ### ✨You are welcome to contribute.✨
 
@@ -132,6 +145,18 @@ Reactive MLFFs are better organized as a workflow plus a chemistry scope, rather
 | Surface catalysis | Methane activation, CO2 reduction, adsorbate reactions | Surfaces, adsorbates, PBCs, and metal-support interactions |
 | Organometallic catalysis | Pd cross-coupling, ligand effects, transition-metal TSs | Oxidation states, coordination changes, ligand diversity, spin |
 | Electrolyte and electrochemistry | Electrolyte decomposition, SEI chemistry, charged interfaces | Ions, radicals, long-range electrostatics, and reactive solvation |
+
+### Constant-Potential Electrochemistry Problem Map
+
+Constant-potential MLFFs are not just ordinary MLFFs trained at several fixed charges. The stricter goal is to emulate an electronically grand-canonical or electrode-reservoir calculation where potential, electron chemical potential, or work function is controlled and charge/electron number can respond.
+
+| Axis | What the MLFF must learn or control | Typical caveat |
+|---|---|---|
+| External electrode condition | Applied potential, electron chemical potential, work function, or Fermi level reference | Reference scales, PZC alignment, and implicit/explicit solvent conventions differ across papers |
+| Variable electron number / charge | Total excess electrons, atomic charge redistribution, or QEq/conductor charges | Partial charges are model-dependent and not unique observables |
+| Grand-canonical energetics | Grand potential, forces, and sometimes Fermi level/work function in one model | Forces should be consistent with the thermodynamic potential used for sampling |
+| Double-layer response | Explicit solvent/ions, long-range electrostatics, capacitance, and field screening | Finite-size, PBC neutrality, and countercharge choices can dominate trends |
+| Reaction sampling | CP-MD, GC-HMC, slow growth, umbrella sampling, or active learning near reaction paths | Data are usually system- and potential-window-specific rather than universal |
 
 ---
 
@@ -374,6 +399,64 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 
 ---
 
+
+## ⚡ Constant-Potential Electrochemistry
+
+Constant-potential electrochemical MLFFs sit at the intersection of long-range electrostatics, reactive chemistry, and electrode-reservoir thermodynamics. This section prioritizes methods that go beyond fixed-charge or fixed-field simulations by allowing electron number, interfacial charge, Fermi level/work function, or grand potential to depend on the applied potential during MD or enhanced sampling.
+
+---
+
+### 📖 Foundations and Reviews (Constant Potential)
+
+| Resource | Role | Summary |
+|---|---|---|
+| [Machine learning force fields in electrochemistry: from fundamentals to applications](https://doi.org/10.1021/acsnano.5c05553) (ACS Nano, 2025) | Broad electrochemistry MLFF review | Good entry point for electrolyte/electrode interfaces, ion transport, free energies, and electrochemical reaction barriers. |
+| [Grand Canonical Quantum Mechanics with Applications to Mechanisms and Rates for Electrocatalysis](https://doi.org/10.1007/s11244-023-01794-8) (Top. Catal., 2023) | GC-QM / GCP-K reference framework | Useful baseline for what constant-potential reaction energetics mean before adding an ML surrogate. |
+| [Atomistic learning in the electronically grand-canonical ensemble](https://doi.org/10.1038/s41524-023-01007-6) (npj Comput. Mater., 2023) | Early electronically grand-canonical atomistic learning | Dual-learning scheme predicts charge and energy across potentials; includes uncertainty and saddle-point acceleration. [Code](https://bitbucket.org/andrewpeterson/amp/) |
+
+---
+
+### 🔬 Models and Methods (Constant Potential)
+
+<details><summary>Grand-Canonical and Variable-Electron MLFFs</summary>
+
+| Model | Constant-potential ingredient | Application and caveat |
+|---|---|---|
+| [CP-MLFF / MACE](https://doi.org/10.1021/acs.jctc.5c00784) (J. Chem. Theory Comput., 2025) | Equivariant GNN takes electron number as input and predicts forces plus Fermi level; implemented as a MACE extension | CO2RR step on Ni-N-C; especially close to the GC-QM/GCP-K idea for potential-dependent barriers. |
+| [CPMPNN](https://doi.org/10.1021/acs.jctc.5c01381) (J. Chem. Theory Comput., 2025) | E(3)-equivariant message passing with a global excess-electron variable redistributed by multihead attention | Grand potential, forces, and work function for Cu(100) CO dimerization and Volmer chemistry; reported ~1000x GCDFT speedup. |
+| [ML-enhanced grand-canonical constant-potential approach](https://doi.org/10.1038/s41467-025-58871-7) (Nat. Commun., 2025) | DP-Ne potential plus GC-HMC / path-integral sampling for electron-number fluctuations and nuclear quantum effects | HER PCET free energies; strong example of MLFF-assisted exact-GC sampling rather than only fixed-work-function snapshots. [Code](https://github.com/sxu39/GC-ConstrainedPIHMC) |
+| [DPchi](https://doi.org/10.26434/chemrxiv-2025-6vcnc) (ChemRxiv, 2025) | Charge-based DP/DPLR-style model with Bader-basin centroids, neural chemical charge, and conductor response under electroneutrality | Validated on Pt(111)-water potential drops, Volmer barriers, and vibrational signatures; currently a focused benchmark rather than a universal electrocatalysis model. |
+| [Constant-potential reactor / veNNP](https://doi.org/10.1021/jacsau.5c01198) (JACS Au, 2026) | Variable-electronic NNP predicts energy, forces, charges, and corrected Fermi level; coupled to modified Nose-Hoover constant-potential MD | Au-water CO2RR with cation effects; combines active learning, Ewald electrostatics, and slow-growth free-energy calculations. |
+| [DP-QEq constant-potential framework](https://doi.org/10.1038/s41467-025-62824-5) (Nat. Commun., 2025) | ML short-range energy plus QEq/PME electrostatics under electrode-potential constraints | Li metal-electrolyte dendrite nucleation; best viewed as a battery-interface ConstP MLFF/QEq framework. [Code](https://github.com/sxu39/DP-QEq) |
+| [Constant-potential MLMD for Cu/MoS2](https://doi.org/10.1021/acs.jpcc.4c08188) (J. Phys. Chem. C, 2025) | Potential-regulated MLMD for interfacial cluster formation | Useful application paper, but check whether the workflow samples a full GCE with Fermi-level fluctuations or uses fixed-potential/charged training states. |
+
+</details>
+
+---
+
+### 🧩 Adjacent and Cautionary Methods
+
+| Resource | Why it is related | Classification caveat |
+|---|---|---|
+| [ec-MLP](https://doi.org/10.1103/48ct-3jxm) (Phys. Rev. Lett., 2025) | Hybrid representation for dielectric response at electrochemical interfaces | Very relevant for metal-water structure and potential response, but not the same as a reaction-ready electronically grand-canonical MLFF. |
+| [RAZOR](https://doi.org/10.1103/lm64-m3bn) (Phys. Rev. Lett. 135, 146201, 2025) | Learns energetics of electrified solid-liquid interfaces | Strong for potential-dependent interfacial energetics; not a general-purpose constant-potential reactive MD force field. |
+| [PiNNwall](https://doi.org/10.1021/acs.jctc.2c01162) (J. Chem. Theory Comput., 2023) | ML-assisted heterogeneous electrode wall model | Closer to classical constant-potential electrode / double-layer modeling than DFT-accuracy reactive MLFF. |
+| [Machine learning interatomic potential can infer electrical response](https://doi.org/10.1038/s41524-025-01911-z) (npj Comput. Mater., 2025) | LES-style MLIP can infer polarization and Born effective charges | Important electric-field response work, but finite-field dielectric response is not automatically constant-electrode-potential sampling. |
+
+---
+
+### 🧪 Codes, Data, and Reproducibility
+
+| Resource | Use | Summary |
+|---|---|---|
+| [Amp](https://bitbucket.org/andrewpeterson/amp/) | Original electronically grand-canonical atomistic-learning implementation | Paper reports sample scripts in the SI; training sets were available on request. |
+| [GC-ConstrainedPIHMC](https://github.com/sxu39/GC-ConstrainedPIHMC) | Grand-canonical constrained/path-integral HMC sampling | Supports the Nat. Commun. 2025 NQE electrocatalysis workflow. |
+| [DP-QEq](https://github.com/sxu39/DP-QEq) | MLFF + QEq constant-potential MD framework | Related Zenodo records provide source data, training datasets, code archive, and force-field models. [Dataset](https://doi.org/10.5281/zenodo.15776510), [Models](https://doi.org/10.5281/zenodo.15778975) |
+| [DeepMD-kit](https://github.com/deepmodeling/deepmd-kit) + [DP-GEN](https://github.com/deepmodeling/dpgen) | Base training and active-learning ecosystem | Used by multiple DP-style constant-potential workflows; the constant-potential physics is usually a paper-specific extension. |
+| [MACE](https://github.com/ACEsuit/mace) | Base equivariant MLIP framework | CP-MLFF shows how to add electron-number conditioning and Fermi-level targets; check whether the CP branch/code is available for your use case. |
+
+---
+
 ## 🛠️ Software Ecosystem
 
 | Project | Use in MLFF workflows |
@@ -382,7 +465,10 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 | [TorchANI](https://github.com/aiqm/torchani) | ANI model family implementation and baseline molecular NNPs |
 | [DeepMD-kit](https://github.com/deepmodeling/deepmd-kit) | Production MLIP training and MD; works with active learning ecosystems |
 | [DP-GEN](https://github.com/deepmodeling/dpgen) | Concurrent learning / active-learning workflow for DP models |
+| [GC-ConstrainedPIHMC](https://github.com/sxu39/GC-ConstrainedPIHMC) | Grand-canonical constrained/path-integral HMC sampling for constant-potential electrocatalysis |
+| [DP-QEq](https://github.com/sxu39/DP-QEq) | MLFF + QEq constant-potential MD for Li metal/electrolyte interfaces |
 | [MACE](https://github.com/ACEsuit/mace) | Equivariant MLIP framework for custom datasets |
+| [Amp](https://bitbucket.org/andrewpeterson/amp/) | Atomistic ML package used for electronically grand-canonical learning examples |
 | [NequIP](https://github.com/mir-group/nequip) | Equivariant GNN MLIP framework |
 | [Allegro](https://github.com/mir-group/allegro) | Scalable equivariant MLIP architecture |
 | [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack) | Atomistic ML toolkit with MD and property prediction workflows |
@@ -411,6 +497,13 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 3. Explore **Transition1x** and **RGD1** datasets to understand reactive data requirements
 4. Test on held-out reactions and verify barrier accuracy, not just force RMSE
 
+### If you are new to constant-potential electrochemistry:
+
+1. Start with **GC-QM/GCP-K** and **Atomistic learning in the electronically GCE** to understand why the energy depends on both nuclear positions and electrode conditions
+2. Compare **CP-MLFF/MACE** and **CPMPNN** for two modern equivariant routes to variable-electron constant-potential MLFFs
+3. Read **DP-Ne/GC-PIHMC** and **constant-potential reactor/veNNP** for sampling-heavy electrochemical reaction workflows
+4. Treat **ec-MLP**, **RAZOR**, **PiNNwall**, and electrical-response MLIPs as adjacent tools unless they explicitly sample the desired grand-canonical ensemble
+
 ### If you are building a model:
 
 **For long-range:**
@@ -425,6 +518,13 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 3. Validate barrier accuracy and reaction energies against QM on held-out reactions
 4. Verify reactant/product graph matching and IRC/NEB connectivity, not only force RMSE
 5. Use ensembles or active-learning indicators for out-of-domain structures
+
+**For constant-potential electrochemistry:**
+1. Decide whether the controlled variable is applied potential, electron chemical potential, work function, total electron number, or electrode charge
+2. Train and validate every coupled target used by the sampler: forces, grand potential/energy, Fermi level/work function, total charge, and charge redistribution
+3. Keep the potential reference explicit: SHE/RHE/vacuum/electrolyte reference, PZC, implicit solvent, and countercharge choices
+4. Test whether electron number or charge can fluctuate correctly at fixed potential, instead of merely interpolating between fixed-charge snapshots
+5. Validate capacitance, potential drops, finite-size behavior, and reaction barriers over the target potential window
 
 ---
 
@@ -450,6 +550,16 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 - [ ] Negative controls: test near-equilibrium-only models to quantify the gain from reactive data
 - [ ] Reoptimization: if ML finds a TS, reoptimize or single-point check with QM for critical claims
 
+### Constant-Potential Electrochemistry
+
+- [ ] Ensemble definition: is the simulation constant-potential / electronically grand-canonical, or only fixed charge / fixed field?
+- [ ] Potential reference: are SHE/RHE/vacuum/electrolyte offsets, PZC, pH convention, and countercharge treatment stated?
+- [ ] Coupled observables: are forces, grand potential/energy, Fermi level/work function, and charge/electron number all validated?
+- [ ] Charge response: does the model reproduce capacitance, potential drop, and charge redistribution against GCDFT or another reference?
+- [ ] Sampling: are solvent/ion configurations and reaction coordinates sampled long enough for barrier convergence?
+- [ ] Finite-size effects: are slab size, water thickness, electrolyte concentration, and PBC neutrality tested?
+- [ ] Scope: is the model only valid for one electrode/electrolyte/potential window, or transferable to new interfaces?
+
 ---
 
 ## Contributing
@@ -470,7 +580,7 @@ If you find this repository useful, please consider citing:
 
 ```bibtex
 @misc{awesome_ml_force_fields_2026,
-  title        = {Awesome Machine Learning Force Fields: Long-Range Interactions and Reactive Chemistry},
+  title        = {Awesome Machine Learning Force Fields: Long-Range Interactions, Reactive Chemistry, and Constant-Potential Electrochemistry},
   author       = {ZeHeru and contributors},
   year         = {2026},
   howpublished = {\url{https://github.com/ZeHeru/Awesome-ML-Force-Field-Long-Range}}
