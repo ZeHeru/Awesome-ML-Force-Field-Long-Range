@@ -8,10 +8,10 @@
 
 <p align="center">
 <img src="https://img.shields.io/badge/Awesome-Survey-8A2BE2" alt="Awesome Survey">
-<img src="https://img.shields.io/badge/Focus-Long--Range%20%26%20Reactive%20%26%20ConstP-blue" alt="Long Range, Reactive & ConstP">
-<img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20ConstP-4BC88C" alt="Topics">
+<img src="https://img.shields.io/badge/Focus-Long--Range%20%26%20Reactive%20%26%20Spin%20%26%20ConstP-blue" alt="Long Range, Reactive, Spin & ConstP">
+<img src="https://img.shields.io/badge/Topics-Electrostatics%20%7C%20Dispersion%20%7C%20Reactions%20%7C%20Spin%20%7C%20ConstP-4BC88C" alt="Topics">
 <br>
-<img src="https://img.shields.io/badge/Update%20🔥-2026.05.18-red" alt="Update">
+<img src="https://img.shields.io/badge/Update%20🔥-2026.06.14-red" alt="Update">
 <img src="https://img.shields.io/badge/Maintained-actively-brightgreen" alt="Actively Maintained">
 <img src="https://img.shields.io/badge/PRs-Welcome-orange" alt="PRs Welcome">
 <br>
@@ -34,18 +34,19 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 - [💙 News](#-news)
 - [Introduction](#introduction)
 - [🧭 Taxonomy](#-taxonomy)
+- [📖 Reviews and Perspectives](#-reviews-and-perspectives)
 - [🌟 Long-Range Interactions](#-long-range-interactions)
-  - [📖 Reviews and Perspectives](#-reviews-and-perspectives-long-range)
   - [🔬 Models and Methods](#-models-and-methods-long-range)
   - [🧪 Datasets](#-datasets-long-range)
   - [🏆 Benchmarks](#-benchmarks-long-range)
 - [🔥 Reactive Chemistry](#-reactive-chemistry)
-  - [📖 Reviews and Perspectives](#-reviews-and-perspectives-reactive)
   - [🔬 Models and Methods](#-models-and-methods-reactive)
   - [🧪 Datasets](#-datasets-reactive)
   - [🏆 Benchmarks](#-benchmarks-reactive)
+- [🧲 Spin and Magnetic States](#-spin-and-magnetic-states)
+  - [🔬 Models and Methods](#-models-and-methods-spin)
 - [⚡ Constant-Potential Electrochemistry](#-constant-potential-electrochemistry)
-  - [📖 Foundations and Reviews](#-foundations-and-reviews-constant-potential)
+  - [🧭 Foundations](#-foundations-constant-potential)
   - [🔬 Models and Methods](#-models-and-methods-constant-potential)
   - [🧩 Adjacent and Cautionary Methods](#-adjacent-and-cautionary-methods)
   - [🧪 Codes, Data, and Reproducibility](#-codes-data-and-reproducibility)
@@ -57,6 +58,17 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 ---
 
 ## 💙 News
+
+**[2026/06/14] [V0.7] Added spin and magnetic states section.**
+
+- Added a dedicated section for MLFFs that incorporate spin degrees of freedom and magnetic ordering
+- Covers implicit (CHGNet magmom proxy), explicit spin-dependent descriptors (sdHDNNP), spin GNNs (SpinGNN+), and spin-informed universal models (Kitchin spin-MACE)
+- Added taxonomy for spin-aware MLFF approaches
+
+**[2026/05/24] [V0.6] Merged review and perspective navigation.**
+
+- Consolidated long-range, reactive, and electrochemistry review papers into one tagged Reviews and Perspectives section
+- Kept topical sections focused on models, datasets, benchmarks, and constant-potential foundations
 
 **[2026/05/18] [V0.5] Added constant-potential electrochemistry MLFFs.**
 
@@ -91,11 +103,13 @@ You can click on <b><img width="16" src="https://img.icons8.com/emoji/48/FFD700/
 
 ## Introduction
 
-Modern machine learning force fields face three coupled challenges:
+Modern machine learning force fields face four coupled challenges:
 
 **Long-Range Interactions**: Most MLFFs use finite cutoffs and local decomposition, which works well for many systems but fails for charged molecules, polar liquids, interfaces, ionic materials, and systems where electrostatics, dispersion, or polarization remain relevant beyond the cutoff.
 
 **Reactive Chemistry**: Models trained only on equilibrium conformers may have excellent force errors near minima but fail along bond-breaking pathways, transition states, ionic/radical regions, or high-temperature reactive trajectories.
+
+**Spin and Magnetic States**: Transition metal oxides and magnetic materials exhibit multiple oxidation states, spin configurations, and magnetic orderings that directly affect the potential energy surface. Standard MLFFs trained on a single magnetic state cannot describe spin-state transitions, charge ordering, or magnetic phase boundaries without explicit spin degrees of freedom.
 
 **Constant-Potential Electrochemistry**: Electrochemical interfaces add another coupled difficulty: the electrode potential is externally controlled, while electron number, interfacial charge, Fermi level/work function, solvent structure, and reaction barriers can all change during sampling.
 
@@ -158,23 +172,64 @@ Constant-potential MLFFs are not just ordinary MLFFs trained at several fixed ch
 | Double-layer response | Explicit solvent/ions, long-range electrostatics, capacitance, and field screening | Finite-size, PBC neutrality, and countercharge choices can dominate trends |
 | Reaction sampling | CP-MD, GC-HMC, slow growth, umbrella sampling, or active learning near reaction paths | Data are usually system- and potential-window-specific rather than universal |
 
+### Spin-Aware MLFF Approaches
+
+Spin-aware MLFFs are organized by how they incorporate magnetic/spin information into the model. The key distinction is whether spin enters implicitly (as a training regularizer), explicitly as an additional descriptor dimension, or as a full vector degree of freedom coupled to structure.
+
+| Family | Spin representation | Strength | Typical caveat |
+|---|---|---|---|
+| Magmom as charge proxy | Magnetic moment predicted as intermediate regularizer (not input) | No spin labels needed at inference; works in universal pretrained models | Averages over magnetic configurations; cannot resolve spin ordering |
+| Spin-dependent descriptors | Scalar spin value added to structural descriptors (ACSFs, etc.) | Physically self-consistent; spin is both input and predicted output | Collinear only; system-specific training required |
+| Spin-dependent GNNs | Spin vector as edge/node feature in GNN message passing | Handles noncollinear/non-coplanar magnetic states | Data-hungry in 6N-dimensional configuration space |
+| Spin-informed universal GNNs | Initial magmom + spin coordinate added to pretrained GNN | Data-efficient finetuning; preserves physical symmetries | Very recent; transferability still being validated |
+| Multi-task spin prediction | Simultaneous energy + spin prediction with self-correction | Does not require accurate spin input at inference | Preprint stage; limited validation scope |
+
+---
+
+## 📖 Reviews and Perspectives
+
+Most MLFF review and perspective papers cut across long-range physics, reactive chemistry, and electrochemical environments. They are collected here once and tagged by primary use case; the topical sections below focus on methods, datasets, and benchmarks.
+
+| Resource | Primary angle | Tags | Summary |
+|---|---|---|---|
+| [Reactive machine learning interatomic potentials for chemistry and materials science](https://doi.org/10.1021/acs.chemrev.5c00728) (Chem. Rev., 2026) | Core reactive MLIP review with architecture and data-acquisition framing | Reactive, active learning, equivariant MLIP | Especially relevant to this repo: descriptor-based models to equivariant GNNs, active learning for transition states and reaction paths, pretrained/reactive MLIP outlook. |
+| [Machine learning of reactive potentials](https://doi.org/10.1146/annurev-physchem-062123-024417) (Annu. Rev. Phys. Chem., 2024) | Comprehensive review of ML potentials for reactive chemistry | Reactive, transition states, catalysis | Covers reactive data generation, active learning, transition-state search, and applications in combustion and catalysis. |
+| [The evolution of machine learning potentials for molecules, reactions and materials](https://doi.org/10.1039/D5CS00104H) (Chem. Soc. Rev., 2025) | Broad MLP evolution with dedicated coverage of reactions and universal potentials | General MLIP, reactive, foundation MLIP | Useful bridge between molecular reaction PESs, equivariant architectures, and materials/catalysis applications. |
+| [Neural network potential energy surfaces for small molecules and reactions](https://doi.org/10.1021/acs.chemrev.0c00665) (Chem. Rev., 2021) | High-accuracy NN PES construction for molecules and reaction dynamics | Reactive, PES, dynamics | Strong background for high-accuracy reactive PES fitting, symmetry, sampling, observables, and quantum/classical dynamics. |
+| [Machine learning for chemical reactions](https://doi.org/10.1021/acs.chemrev.1c00033) (Chem. Rev., 2021) | Broad ML view of chemical reaction problems | Reactive, reaction networks, dynamics | Adjacent to MLFF but valuable for reaction dynamics, reactive networks, and how ML connects simulation with reaction planning/experiments. |
+| [Machine learning force fields](https://doi.org/10.1021/acs.chemrev.0c01111) (Chem. Rev., 2021) | Broad MLFF methods, training strategies, and applications | General MLFF, reactive, long-range | Comprehensive overview of MLFF methods, training strategies, applications, and physical constraints. |
+| [Neural network potentials for chemistry: concepts, applications and prospects](https://pubs.rsc.org/en/content/articlelanding/2023/dd/d2dd00102k) (Digital Discovery, 2023) | Chemistry-facing NNP review and PES-building workflow | General MLFF, reactive, long-range | Covers theoretical background, NN architectures, descriptors, PES construction workflows, transfer learning, spectroscopy, and dynamics. |
+| [Neural network potentials: a concise overview of methods](https://doi.org/10.1146/annurev-physchem-082720-034254) (Annu. Rev. Phys. Chem., 2022) | Concise overview of NNP method generations | General MLFF, long-range, charge transfer | Systematic classification from first-generation to fourth-generation potentials with nonlocal charge transfer. |
+| [Four generations of high-dimensional neural network potentials](https://doi.org/10.1021/acs.chemrev.0c00868) (Chem. Rev., 2021) | HDNNP evolution including explicit nonlocal physics | Long-range, electrostatics, charge transfer | Reviews four generations: from low-dimensional systems to high-dimensional local models, then adding long-range electrostatics and nonlocal charge transfer. |
+| [Machine learning potentials for extended systems: a perspective](https://doi.org/10.1140/epjb/s10051-021-00156-1) (Eur. Phys. J. B, 2021) | ML potentials for materials and extended systems | Long-range, extended systems, nonlocality | Discusses locality exploitation, long-range electrostatics, and non-local charge transfer in ML potentials for extended systems. |
+| [Long-range electrostatics made easier](https://doi.org/10.1063/5.0316886) (J. Chem. Phys., 2026) | LES framework design principles | Long-range, electrostatics, LES | Distills two key principles: use Coulomb functional with environment-dependent charges, and avoid training on ambiguous DFT partial charges. |
+| [When short-range models fall short](https://doi.org/10.1063/5.0031215) (J. Chem. Phys., 2021) | Limits of local ML representations | Long-range, locality, validation | Demonstrates that while local representations suffice for condensed phases, short-range ML models fail for cluster and vapor phases. |
+| [General-purpose ML potentials with nonlocal charge transfer](https://doi.org/10.1021/acs.accounts.0c00689) (Acc. Chem. Res., 2021) | Account of fourth-generation NNPs | Long-range, charge transfer, electronic effects | Overview of machine learning potentials that can describe long-range charge transfer and electronic effects. |
+| [High-dimensional potential energy surfaces for molecular simulations: from empiricism to machine learning](https://doi.org/10.1088/2632-2153/ab5922) (Mach. Learn.: Sci. Technol., 2020) | Historical bridge from empirical PESs to ML PESs | Reactive, PES, dynamics | Useful historical bridge from empirical reactive force fields and PIP/RKHS PESs to NN potentials. |
+| [Machine learning for molecular simulation](https://doi.org/10.1146/annurev-physchem-042018-052331) (Annu. Rev. Phys. Chem., 2020) | ML for energies, forces, free energies, kinetics, and sampling | General simulation, reactive, sampling | Helpful context for reactive MD, free-energy surfaces, kinetics extraction, and enhanced sampling workflows. |
+| [Atomistic simulations for reactions and vibrational spectroscopy in the era of machine learning - Quo Vadis?](https://doi.org/10.1021/acs.jpcb.2c00212) (J. Phys. Chem. B, 2022) | Reactive atomistic simulation and ML energy functions | Reactive, long-range, spectroscopy | Useful for connecting reactive PESs, spectroscopy, long-range/multipolar physics, and ML-driven dynamics. |
+| [Data generation for machine learning interatomic potentials and beyond](https://doi.org/10.1021/acs.chemrev.4c00572) (Chem. Rev., 2024) | MLIP training-data design and active learning | Data generation, active learning, reactive | Directly relevant to reactive MLFFs because reaction success often depends more on TS/pathway/OOD data than on force RMSE alone. |
+| [Strategies for the construction of machine-learning potentials for accurate and efficient atomic-scale simulations](https://doi.org/10.1088/2632-2153/abfd96) (Mach. Learn.: Sci. Technol., 2021) | Practical MLIP construction workflow | Data generation, validation, active learning | Tutorial review on data collection, training, validation, testing, and refinement for task-specific ML potentials. |
+| [A practical guide to machine learning interatomic potentials - status and future](https://doi.org/10.1016/j.cossms.2025.101214) (Curr. Opin. Solid State Mater. Sci., 2025) | Practical MLIP user guide and status/future overview | General MLIP, pretrained MLIP, reactive | Useful for deciding when to fine-tune a pretrained potential versus building a reactive dataset from scratch. |
+| [Machine learning approaches for transition state prediction](https://doi.org/10.1016/j.checat.2025.101458) (Chem Catalysis, 2025) | ML-assisted TS prediction and search | Reactive, transition states, generative models | Adjacent but important for reactive MLFF workflows; covers modern equivariant/generative TS models and validation challenges. |
+| [The potential of neural network potentials](https://doi.org/10.1021/acsphyschemau.4c00004) (ACS Phys. Chem. Au, 2024) | Impact of equivariant NNPs in physical chemistry | Equivariant MLIP, physical chemistry | Good concise motivation for why equivariant NNPs change feasible reaction and molecular simulation scales. |
+| [Advancing molecular simulation with equivariant interatomic potentials](https://doi.org/10.1038/s42254-023-00615-x) (Nat. Rev. Phys., 2023) | Symmetry and equivariance perspective for IAPs | Equivariant MLIP, simulation | Useful for the symmetry/equivariance rationale behind NequIP, Allegro, MACE-style reactive MLFFs. |
+| [Recent advances and outstanding challenges for machine learning interatomic potentials](https://doi.org/10.1038/s43588-023-00561-9) (Nat. Comput. Sci., 2023) | Status and challenges for modern MLIPs | General MLIP, benchmarks, transferability | Concise overview of graph/equivariant MLIPs, transferability, data, and benchmark limitations. |
+| [Machine learning interatomic potentials at the centennial crossroads of quantum mechanics](https://doi.org/10.1038/s43588-025-00930-6) (Nat. Comput. Sci., 2025) | MLIPs in the broader quantum-chemistry landscape | Foundation MLIP, quantum chemistry | Useful for positioning pretrained/foundation MLIPs and reactive quantum-chemistry workflows. Summary entry not yet added. |
+| [Extending machine learning beyond interatomic potentials for predicting molecular properties](https://doi.org/10.1038/s41570-022-00416-3) (Nat. Rev. Chem., 2022) | Learned molecular and electronic properties beyond energies/forces | Charges, dipoles, spin, long-range/reactive | Important background for reactive systems where charge, spin, radical character, and bond order matter. |
+| [Machine learning interatomic potentials for catalysis](https://doi.org/10.1002/chem.202401148) (Chem. Eur. J., 2024) | MLIP applications and best practices for catalytic systems | Catalysis, reactive, electrochemistry | Good catalysis-specific complement for surface reactions, CO2 reduction, water splitting, and adsorbate dynamics. Summary entry not yet added. |
+| [Machine learning potentials for heterogeneous catalysis](https://doi.org/10.1021/acscatal.4c06717) (ACS Catal., 2025) | MLPs for heterogeneous catalysis | Catalysis, reactive interfaces | Focuses on atomistic simulation of catalytic mechanisms and dynamic interfaces with near-DFT accuracy. |
+| [Application of machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1016/j.jcat.2025.116202) (J. Catal., 2025) | MLIPs across thermal, electro-, and photocatalysis | Catalysis, electrochemistry, long-range | Useful application-focused survey for active sites, surface reconstruction, solid-liquid interfaces, transferability, and nonlocal-interaction limitations. |
+| [The future of foundation machine learning potentials and DFT in homogeneous catalysis: competition or synergy?](https://doi.org/10.1002/chem.71022) (Chem. Eur. J., 2026) | Foundation MLIPs for homogeneous and organometallic catalysis | Homogeneous catalysis, reactive, foundation MLIP | Very relevant to reaction workflows with ligands, oxidation states, TS exploration, uncertainty, solvation, open-shell, and multireference edge cases. |
+| [Challenges and opportunities of pretrained machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1021/acscatal.5c08945) (ACS Catal., 2026) | Pretrained/foundation MLIPs for heterogeneous catalysis | Heterogeneous catalysis, pretrained MLIP | Useful for assessing zero-shot/fine-tuned MLIPs on reactive surface chemistry and standardized benchmarks. |
+| [Machine learning force fields in electrochemistry: from fundamentals to applications](https://doi.org/10.1021/acsnano.5c05553) (ACS Nano, 2025) | MLFF foundations and electrochemical applications | Electrochemistry, constant-potential, reactive | Strong fit for electrolyte/electrode reactions, ionics, free-energy landscapes, and electrochemical reaction thermodynamics/kinetics. |
+| [Neural network reactive force field for C/H/N/O systems](https://doi.org/10.1021/acs.jpca.0c05992) (J. Phys. Chem. A, 2020) | Early neural-network reactive force-field reference for CHNO chemistry | Reactive, CHNO, historical | Demonstrates feasibility of NN-based reactive potentials for organic systems. |
+
 ---
 
 ## 🌟 Long-Range Interactions
 
----
-
-### 📖 Reviews and Perspectives (Long-Range)
-
-| Resource | Focus | Summary |
-|---|---|---|
-| [Neural network potentials for chemistry: concepts, applications and prospects](https://pubs.rsc.org/en/content/articlelanding/2023/dd/d2dd00102k) (Digital Discovery, 2023) | Comprehensive review of NN-based PESs for chemistry | Covers theoretical background, NN architectures, descriptors, PES construction workflows, knowledge transfer, applications in spectroscopy and dynamics. |
-| [Neural network potentials: a concise overview of methods](https://doi.org/10.1146/annurev-physchem-082720-034254) (Annu. Rev. Phys. Chem., 2022) | Concise overview of NNP methods across four generations | Systematic classification from first-generation to fourth-generation potentials with nonlocal charge transfer. |
-| [Four generations of high-dimensional neural network potentials](https://doi.org/10.1021/acs.chemrev.0c00868) (Chem. Rev., 2021) | Comprehensive review of HDNNP evolution including long-range treatment | Reviews four generations: from low-dimensional systems to high-dimensional local models, then adding long-range electrostatics and nonlocal charge transfer. |
-| [Machine learning potentials for extended systems: a perspective](https://doi.org/10.1140/epjb/s10051-021-00156-1) (Eur. Phys. J. B, 2021) | Perspective on ML potentials for materials with long-range interactions | Discusses locality exploitation, long-range electrostatics, and non-local charge transfer in ML potentials for extended systems. |
-| [Long-range electrostatics made easier](https://doi.org/10.1063/5.0316886) (J. Chem. Phys., 2026) | Perspective on LES framework design principles | Distills two key principles: use Coulomb functional with environment-dependent charges, and avoid training on ambiguous DFT partial charges. |
-| [When short-range models fall short](https://doi.org/10.1063/5.0031215) (J. Chem. Phys., 2021) | Analysis of long-range interaction necessity in ML models | Demonstrates that while local representations suffice for condensed phases, short-range ML models fail for cluster and vapor phases. |
-| [General-purpose ML potentials with nonlocal charge transfer](https://doi.org/10.1021/acs.accounts.0c00689) (Acc. Chem. Res., 2021) | Account of fourth-generation NNPs capturing nonlocal phenomena | Overview of machine learning potentials that can describe long-range charge transfer and electronic effects. |
+Review and perspective articles are collected in the unified [Reviews and Perspectives](#-reviews-and-perspectives) section to avoid duplicate cross-topic entries.
 
 ---
 
@@ -206,6 +261,7 @@ Constant-potential MLFFs are not just ordinary MLFFs trained at several fixed ch
 | [DeepWannier for Dielectric Response](https://doi.org/10.1103/PhysRevB.102.041121) (Phys. Rev. B, 2020) | Learns Wannier centers for dielectric properties | Learns MLWC centers with a symmetry-preserving DNN. |
 | [EwaldMP](https://github.com/arthurkosmala/EwaldMP) | Adds Ewald-based long-range message passing to molecular graphs | Reference implementation is available from the linked repository. |
 | [LES](https://doi.org/10.1038/s41524-025-01577-7) (npj Comput. Mater., 2025) | Learns latent variables and applies Ewald summation | Predicts latent variables from local descriptors and couples them globally through Ewald summation. |
+| [Machine learning of charges and long-range interactions from energies and forces](https://doi.org/10.1038/s41467-025-63852-x) (Nat. Commun., 2025) | LES theory and charge inference from energy/force training | Connects LES latent charges to physical charges, multipoles, range separation, and long-range electrostatics across diverse systems. |
 | [LES augmentation](https://doi.org/10.1021/acs.jctc.5c01400) (J. Chem. Theory Comput., 2026) | Standalone LES library attached to CACE, MACE, NequIP, Allegro, CHGNet, UMA | Standalone PyTorch LES module for retrofitting short-range MLIPs. |
 | [SOG-Net](https://arxiv.org/abs/2502.04668) (arXiv, 2025) | Learns sum-of-Gaussians long-range kernels with Fourier convolution | Learns latent variables and sum-of-Gaussians Fourier convolution kernels. |
 | [CACE-SOG](https://doi.org/10.1063/5.0303312) (J. Chem. Phys., 2026) | Couples CACE descriptor with SOG-Net for long-range interactions | Integrates Cartesian atomic cluster expansion with sum-of-Gaussians neural network. |
@@ -270,40 +326,7 @@ Constant-potential MLFFs are not just ordinary MLFFs trained at several fixed ch
 ---
 ## 🔥 Reactive Chemistry
 
----
-
-### 📖 Reviews and Perspectives (Reactive)
-
-This list prioritizes review/perspective papers that are useful for **equivariant MLFFs for reactions**: reactive MLIP architecture, reaction-path/TS data, active learning, reactive dynamics, catalysis, and electrochemical reactivity.
-
-| Resource | Focus | Summary |
-|---|---|---|
-| [Reactive machine learning interatomic potentials for chemistry and materials science](https://doi.org/10.1021/acs.chemrev.5c00728) (Chem. Rev., 2026) | Core reactive MLIP review with explicit architecture/data-acquisition framing | Especially relevant to this repo: descriptor-based models to equivariant GNNs, active learning for transition states and reaction paths, pretrained/reactive MLIP outlook. |
-| [Machine learning of reactive potentials](https://doi.org/10.1146/annurev-physchem-062123-024417) (Annu. Rev. Phys. Chem., 2024) | Comprehensive review of ML potentials for reactive chemistry | Covers reactive data generation, active learning, transition state search, and applications in combustion and catalysis. |
-| [The evolution of machine learning potentials for molecules, reactions and materials](https://doi.org/10.1039/D5CS00104H) (Chem. Soc. Rev., 2025) | Broad MLP review with dedicated coverage of reactions and universal potentials | Useful bridge between molecular reaction PESs, equivariant architectures, and material/catalysis applications. |
-| [Neural network potential energy surfaces for small molecules and reactions](https://doi.org/10.1021/acs.chemrev.0c00665) (Chem. Rev., 2021) | Review of NN PES construction for small molecules and reaction dynamics | Strong background for high-accuracy reactive PES fitting, symmetry, sampling, observables, and quantum/classical dynamics. |
-| [Machine learning for chemical reactions](https://doi.org/10.1021/acs.chemrev.1c00033) (Chem. Rev., 2021) | Broad review of ML across chemical reaction problems | Adjacent to MLFF but valuable for reaction dynamics, reactive networks, and how ML connects simulation with reaction planning/experiments. |
-| [Machine learning force fields](https://doi.org/10.1021/acs.chemrev.0c01111) (Chem. Rev., 2021) | Broad MLFF review; useful background for reactive MLIPs | Comprehensive overview of MLFF methods, training strategies, and applications. |
-| [Neural network potentials for chemistry: concepts, applications and prospects](https://pubs.rsc.org/en/content/articlelanding/2023/dd/d2dd00102k) (Digital Discovery, 2023) | Chemistry-facing NNP review and PES-building workflow | Good entry point for PES construction, transfer learning, spectroscopy/dynamics, and practical chemistry applications. |
-| [High-dimensional potential energy surfaces for molecular simulations: from empiricism to machine learning](https://doi.org/10.1088/2632-2153/ab5922) (Mach. Learn.: Sci. Technol., 2020) | Perspective on high-dimensional PESs for molecular simulation and reactions | Useful historical bridge from empirical reactive force fields and PIP/RKHS PESs to NN potentials. |
-| [Machine learning for molecular simulation](https://doi.org/10.1146/annurev-physchem-042018-052331) (Annu. Rev. Phys. Chem., 2020) | ML for energies/forces, free energies, kinetics, and sampling | Helpful context for reactive MD, free-energy surfaces, kinetics extraction, and enhanced sampling workflows. |
-| [Atomistic simulations for reactions and vibrational spectroscopy in the era of machine learning - Quo Vadis?](https://doi.org/10.1021/acs.jpcb.2c00212) (J. Phys. Chem. B, 2022) | Perspective on reactive atomistic simulation and ML energy functions | Useful for connecting reactive PESs, spectroscopy, long-range/multipolar physics, and ML-driven dynamics. |
-| [Data generation for machine learning interatomic potentials and beyond](https://doi.org/10.1021/acs.chemrev.4c00572) (Chem. Rev., 2024) | Review of MLIP training-data design and active learning | Directly relevant to reactive MLFFs because reaction success often depends more on TS/pathway/OOD data than on force RMSE alone. |
-| [Strategies for the construction of machine-learning potentials for accurate and efficient atomic-scale simulations](https://doi.org/10.1088/2632-2153/abfd96) (Mach. Learn.: Sci. Technol., 2021) | Tutorial review on MLIP data collection, training, validation, testing, and refinement | Practical guide for building task-specific reactive potentials and active-learning loops. |
-| [A practical guide to machine learning interatomic potentials - status and future](https://doi.org/10.1016/j.cossms.2025.101214) (Curr. Opin. Solid State Mater. Sci., 2025) | Practical MLIP user guide and status/future overview | Useful for deciding when to fine-tune a pretrained potential versus building a reactive dataset from scratch. |
-| [Machine learning approaches for transition state prediction](https://doi.org/10.1016/j.checat.2025.101458) (Chem Catalysis, 2025) | Review of ML-assisted TS prediction and search | Adjacent but important for reactive MLFF workflows; covers modern equivariant/generative TS models and validation challenges. |
-| [The potential of neural network potentials](https://doi.org/10.1021/acsphyschemau.4c00004) (ACS Phys. Chem. Au, 2024) | Perspective on the impact of equivariant NNPs in physical chemistry | Good concise motivation for why equivariant NNPs change feasible reaction and molecular simulation scales. |
-| [Advancing molecular simulation with equivariant interatomic potentials](https://doi.org/10.1038/s42254-023-00615-x) (Nat. Rev. Phys., 2023) | Short perspective on equivariant interatomic potentials | Useful for the symmetry/equivariance rationale behind NequIP, Allegro, MACE-style reactive MLFFs. |
-| [Recent advances and outstanding challenges for machine learning interatomic potentials](https://doi.org/10.1038/s43588-023-00561-9) (Nat. Comput. Sci., 2023) | Status/challenges perspective for modern MLIPs | Concise overview of graph/equivariant MLIPs, transferability, data, and benchmark limitations. |
-| [Machine learning interatomic potentials at the centennial crossroads of quantum mechanics](https://doi.org/10.1038/s43588-025-00930-6) (Nat. Comput. Sci., 2025) | Perspective on MLIPs in the broader quantum-chemistry landscape | Useful for positioning pretrained/foundation MLIPs and reactive quantum-chemistry workflows. Summary entry not yet added. |
-| [Extending machine learning beyond interatomic potentials for predicting molecular properties](https://doi.org/10.1038/s41570-022-00416-3) (Nat. Rev. Chem., 2022) | Review of learned charges, dipoles, spin/electron densities, bonding, and Hamiltonians | Important background for reactive systems where charge, spin, radical character, and bond order matter. |
-| [Machine learning interatomic potentials for catalysis](https://doi.org/10.1002/chem.202401148) (Chem. Eur. J., 2024) | Review of MLIP applications and best practices for catalytic systems | Good catalysis-specific complement for surface reactions, CO2 reduction, water splitting, and adsorbate dynamics. Summary entry not yet added. |
-| [Machine learning potentials for heterogeneous catalysis](https://doi.org/10.1021/acscatal.4c06717) (ACS Catal., 2025) | Perspective on MLPs for heterogeneous catalysis | Focuses on atomistic simulation of catalytic mechanisms and dynamic interfaces with near-DFT accuracy. |
-| [Application of machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1016/j.jcat.2025.116202) (J. Catal., 2025) | Review of MLIPs across thermal, electro-, and photocatalysis | Useful application-focused survey for active sites, surface reconstruction, solid-liquid interfaces, transferability, and nonlocal-interaction limitations. |
-| [The future of foundation machine learning potentials and DFT in homogeneous catalysis: competition or synergy?](https://doi.org/10.1002/chem.71022) (Chem. Eur. J., 2026) | Perspective on foundation MLIPs for homogeneous and organometallic catalysis | Very relevant to reaction workflows with ligands, oxidation states, TS exploration, uncertainty, solvation, open-shell, and multireference edge cases. |
-| [Challenges and opportunities of pretrained machine learning interatomic potentials in heterogeneous catalysis](https://doi.org/10.1021/acscatal.5c08945) (ACS Catal., 2026) | Perspective on pretrained/foundation MLIPs for catalysis | Useful for assessing zero-shot/fine-tuned MLIPs on reactive surface chemistry and standardized benchmarks. |
-| [Machine learning force fields in electrochemistry: from fundamentals to applications](https://doi.org/10.1021/acsnano.5c05553) (ACS Nano, 2025) | Review of MLFF foundations and electrochemical applications | Strong fit for electrolyte/electrode reactions, ionics, free-energy landscapes, and electrochemical reaction thermodynamics/kinetics. |
-| [Neural network reactive force field for C/H/N/O systems](https://doi.org/10.1021/acs.jpca.0c05992) (J. Phys. Chem. A, 2020) | Early neural network reactive force-field reference for CHNO chemistry | Demonstrates feasibility of NN-based reactive potentials for organic systems. |
+Review and perspective articles are collected in the unified [Reviews and Perspectives](#-reviews-and-perspectives) section; this section focuses on reactive models, datasets, and benchmarks.
 
 ---
 
@@ -400,17 +423,75 @@ This list prioritizes review/perspective papers that are useful for **equivarian
 ---
 
 
+## 🧲 Spin and Magnetic States
+
+Transition metal oxides, spinels, and magnetic alloys exhibit multiple oxidation states, spin configurations, and magnetic orderings (ferro-, antiferro-, ferrimagnetic, noncollinear) that directly couple to the potential energy surface. Standard MLFFs trained on a single magnetic ground state cannot capture spin-state transitions, charge ordering, Néel/Curie temperatures, or spin-lattice coupling without explicit spin degrees of freedom. This section collects methods that go beyond single-state training by incorporating spin as an input, output, or latent variable.
+
+---
+
+### 🔬 Models and Methods (Spin)
+
+<details><summary>Implicit Spin (Magmom as Proxy)</summary>
+
+| Model | Spin treatment | Application | Summary |
+|---|---|---|---|
+| [CHGNet](https://doi.org/10.1038/s42256-023-00716-3) (Nat. Mach. Intell., 2023) | Predicts site-resolved magnetic moments as intermediate regularizer; magmom acts as proxy for oxidation state (e.g., Mn²⁺ ~5μ_B, Mn³⁺ ~4μ_B, Mn⁴⁺ ~3μ_B) | Universal pretrained model covering 89 elements; validated on Li_xMnO₂ charge disproportionation | ✅ No spin input needed at inference; ❌ averages over magnetic configurations; trained on GGA+U with U-value ambiguity. |
+
+</details>
+
+<details><summary>Explicit Spin-Dependent Descriptors (sdHDNNP)</summary>
+
+| Model | Spin treatment | Application | Summary |
+|---|---|---|---|
+| [Eckhoff & Behler sdHDNNP](https://doi.org/10.1038/s41524-021-00636-z) (npj Comput. Mater., 2021) | Spin-dependent atom-centered symmetry functions (sdACSF): adds spin variable to neighbor descriptors so Mn³⁺(s=4μ_B) and Mn⁴⁺(s=3μ_B) produce different fingerprints | MnO antiferromagnetic/paramagnetic phase transition, Néel temperature, rhombohedral distortion | Core method paper; energy RMSE drops from 11 to 1 meV/atom when spin is included. Two coupled NNs: HDNNP (energy from coords+spin) and HDNNS (spin from coords). |
+| [Eckhoff & Behler HDNNS](https://doi.org/10.1063/5.0021452) (J. Chem. Phys., 2020) | High-dimensional neural network for spin prediction; predicts per-atom oxidation and spin states from structure | Li_xMn₂O₄ spinel: Mn²⁺/³⁺/⁴⁺ coexistence, Jahn-Teller distortions, charge ordering transition at 280-300 K, electron hopping | First demonstration of coupled HDNNP+HDNNS for dynamically tracking oxidation states in MD. Spin prediction error 0.03ℏ. |
+| [Omranpour & Behler Co₃O₄ HDNNP](https://arxiv.org/abs/2409.03253) (arXiv, 2024) | HDNNP for Co₃O₄ spinel with Co²⁺/Co³⁺ mixed valence | Bulk Co₃O₄: structural, vibrational, thermal expansion properties; finite-temperature behavior of catalytic oxide | Extends sdHDNNP framework to cobalt oxide catalysis; validates against DFT+U for a system directly relevant to OER. |
+
+</details>
+
+<details><summary>Spin-Dependent Graph Neural Networks</summary>
+
+| Model | Spin treatment | Application | Summary |
+|---|---|---|---|
+| [SpinGNN / SpinGNN+](https://doi.org/10.1103/PhysRevB.109.144426) (Phys. Rev. B, 2024) | Two edge GNN sub-networks: HEGNN (Heisenberg-type spin-spin coupling via dot product) and SEGNN (spin-distance edges for higher-order spin-lattice coupling); handles noncollinear spin as continuous vector | BiFeO₃ multiferroic: antiferromagnetic ground state, magnetic phase transition, domain wall energy; Fe/Ni/Cr magnetic alloys | First GNN framework for noncollinear magnetic PES; supports spin-lattice dynamics at scale. Spin-Allegro variant enables parallel large-scale simulations. |
+
+</details>
+
+<details><summary>Spin-Informed Universal Models</summary>
+
+| Model | Spin treatment | Application | Summary |
+|---|---|---|---|
+| [Spin-informed GemNet-OC](https://doi.org/10.1073/pnas.2422973122) (PNAS, 2025) | Adds initial magmom scalar + atomic spin coordinate (unit vector) as inputs to GemNet-OC/SchNet; preserves physical symmetries for collinear systems | Magnetic ordering prediction for bulk materials and surfaces; anomaly detection in MP benchmark datasets; adsorbate-induced nonlocal spin effects | Most mature universal + spin-aware approach; data-efficient finetuning from OCP foundation models. Closed-loop anomaly detection improves dataset quality. |
+
+</details>
+
+<details><summary>Comparison of Spin-Aware Approaches</summary>
+
+| Approach | Transition metals | Multi-oxidation state | Periodic systems | Noncollinear | Electrode potential | Maturity |
+|---|---|---|---|---|---|---|
+| CHGNet (magmom proxy) | ✅ | ✅ (implicit) | ✅ | ❌ | ❌ | High |
+| Eckhoff/Behler sdHDNNP | ✅ | ✅ (explicit) | ✅ | ❌ | ❌ | Medium |
+| SpinGNN+ | ✅ | Partial | ✅ | ✅ | ❌ | Medium |
+| Kitchin spin-GemNet-OC | ✅ | ✅ | ✅ | ❌ (collinear) | ❌ | Low (2025) |
+| SpinMultiNet | ✅ | ✅ | ✅ | ❌ | ❌ | Low (preprint) |
+| AIMNet2-NSE | ❌ | ✅ (organic) | ❌ | ❌ | ❌ | High |
+
+</details>
+
+---
+
 ## ⚡ Constant-Potential Electrochemistry
 
 Constant-potential electrochemical MLFFs sit at the intersection of long-range electrostatics, reactive chemistry, and electrode-reservoir thermodynamics. This section prioritizes methods that go beyond fixed-charge or fixed-field simulations by allowing electron number, interfacial charge, Fermi level/work function, or grand potential to depend on the applied potential during MD or enhanced sampling.
 
 ---
 
-### 📖 Foundations and Reviews (Constant Potential)
+### 🧭 Foundations (Constant Potential)
+
+Review articles are collected in the unified [Reviews and Perspectives](#-reviews-and-perspectives) section; this table keeps constant-potential reference frameworks close to the methods they motivate.
 
 | Resource | Role | Summary |
 |---|---|---|
-| [Machine learning force fields in electrochemistry: from fundamentals to applications](https://doi.org/10.1021/acsnano.5c05553) (ACS Nano, 2025) | Broad electrochemistry MLFF review | Good entry point for electrolyte/electrode interfaces, ion transport, free energies, and electrochemical reaction barriers. |
 | [Grand Canonical Quantum Mechanics with Applications to Mechanisms and Rates for Electrocatalysis](https://doi.org/10.1007/s11244-023-01794-8) (Top. Catal., 2023) | GC-QM / GCP-K reference framework | Useful baseline for what constant-potential reaction energetics mean before adding an ML surrogate. |
 | [Atomistic learning in the electronically grand-canonical ensemble](https://doi.org/10.1038/s41524-023-01007-6) (npj Comput. Mater., 2023) | Early electronically grand-canonical atomistic learning | Dual-learning scheme predicts charge and energy across potentials; includes uncertainty and saddle-point acceleration. [Code](https://bitbucket.org/andrewpeterson/amp/) |
 
@@ -504,6 +585,14 @@ Constant-potential electrochemical MLFFs sit at the intersection of long-range e
 3. Read **DP-Ne/GC-PIHMC** and **constant-potential reactor/veNNP** for sampling-heavy electrochemical reaction workflows
 4. Treat **ec-MLP**, **RAZOR**, **PiNNwall**, and electrical-response MLIPs as adjacent tools unless they explicitly sample the desired grand-canonical ensemble
 
+### If you are new to spin and magnetic states:
+
+1. Start with **CHGNet** to see how magnetic moments serve as an implicit proxy for oxidation states in a universal model
+2. Read **Eckhoff & Behler sdHDNNP** (npj Comput. Mater. 2021) for the explicit spin-dependent descriptor approach and the coupled HDNNP+HDNNS architecture
+3. Read **SpinGNN+** for noncollinear spin treatment in GNN architectures
+4. Read **Spin-informed GemNet-OC** (PNAS 2025) for the most recent universal + spin-aware approach with anomaly detection
+5. For OER-relevant systems, examine the **Co₃O₄ HDNNP** and **LiMn₂O₄ HDNNS** papers for transition metal oxide demonstrations
+
 ### If you are building a model:
 
 **For long-range:**
@@ -525,6 +614,13 @@ Constant-potential electrochemical MLFFs sit at the intersection of long-range e
 3. Keep the potential reference explicit: SHE/RHE/vacuum/electrolyte reference, PZC, implicit solvent, and countercharge choices
 4. Test whether electron number or charge can fluctuate correctly at fixed potential, instead of merely interpolating between fixed-charge snapshots
 5. Validate capacitance, potential drops, finite-size behavior, and reaction barriers over the target potential window
+
+**For spin and magnetic states:**
+1. Decide whether your system needs collinear-only or full noncollinear spin treatment
+2. Choose the DFT functional carefully: GGA+U introduces U-value ambiguity; hybrid functionals (PBE0, HSE06) are more reliable but more expensive for data generation
+3. If using spin-dependent descriptors (sdHDNNP), train both the energy model and the spin prediction model; couple them in MD
+4. Validate magnetic ground-state ordering, spin-state energy differences, and Néel/Curie temperatures against experiment
+5. Check whether the model correctly tracks oxidation-state changes during dynamics (e.g., Jahn-Teller distortions, charge disproportionation)
 
 ---
 
@@ -560,6 +656,16 @@ Constant-potential electrochemical MLFFs sit at the intersection of long-range e
 - [ ] Finite-size effects: are slab size, water thickness, electrolyte concentration, and PBC neutrality tested?
 - [ ] Scope: is the model only valid for one electrode/electrolyte/potential window, or transferable to new interfaces?
 
+### Spin and Magnetic States
+
+- [ ] Spin scope: does the model handle the magnetic configurations relevant to your system (FM, AFM, FiM, noncollinear)?
+- [ ] DFT reference: is the training functional appropriate for magnetic states (hybrid vs. GGA+U, U-value justification)?
+- [ ] Spin prediction: if using coupled HDNNP+HDNNS or similar, is the spin prediction error small enough to resolve oxidation states?
+- [ ] Magnetic ordering: does the model predict the correct ground-state magnetic ordering and energy differences between states?
+- [ ] Phase transitions: are Néel/Curie temperatures and structural distortions (e.g., Jahn-Teller) reproduced?
+- [ ] Dynamic tracking: can the model follow oxidation-state changes, charge ordering, and electron hopping during MD?
+- [ ] Spin-lattice coupling: are structural changes driven by magnetic transitions correctly captured?
+
 ---
 
 ## Contributing
@@ -580,7 +686,7 @@ If you find this repository useful, please consider citing:
 
 ```bibtex
 @misc{awesome_ml_force_fields_2026,
-  title        = {Awesome Machine Learning Force Fields: Long-Range Interactions, Reactive Chemistry, and Constant-Potential Electrochemistry},
+  title        = {Awesome Machine Learning Force Fields: Long-Range Interactions, Reactive Chemistry, Spin/Magnetic States, and Constant-Potential Electrochemistry},
   author       = {ZeHeru and contributors},
   year         = {2026},
   howpublished = {\url{https://github.com/ZeHeru/Awesome-ML-Force-Field-Long-Range}}
